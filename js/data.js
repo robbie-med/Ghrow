@@ -130,11 +130,37 @@
   }
 
   function resolveColumn(row, preferred, aliases) {
-    if (preferred && Object.prototype.hasOwnProperty.call(row, preferred)) return preferred;
-    for (const alias of aliases || []) {
-      if (Object.prototype.hasOwnProperty.call(row, alias)) return alias;
+    const headers = Object.keys(row || {});
+    const candidates = [];
+    if (preferred) candidates.push(preferred);
+    (aliases || []).forEach((a) => { if (a) candidates.push(a); });
+
+    // 1) exact case-insensitive match against headers
+    for (const h of headers) {
+      for (const c of candidates) {
+        if (c && h.toLowerCase() === c.toLowerCase()) return h;
+      }
     }
-    return preferred;
+
+    // 2) permissive contains/substring match (e.g. 'Month' vs 'Age', 'Agemos')
+    for (const h of headers) {
+      for (const c of candidates) {
+        if (!c) continue;
+        const hl = h.toLowerCase();
+        const cl = c.toLowerCase();
+        if (hl.includes(cl) || cl.includes(hl)) return h;
+      }
+    }
+
+    // 3) fallback to a header that looks like an age/month/day column
+    for (const h of headers) {
+      const hl = h.toLowerCase();
+      if (hl.includes('age') || hl.includes('month') || hl.includes('mo') || hl.includes('day')) return h;
+    }
+
+    // 4) last resort: return preferred if present, otherwise first header or preferred
+    if (preferred && Object.prototype.hasOwnProperty.call(row, preferred)) return preferred;
+    return headers[0] || preferred;
   }
 
   function percentileColumns(rows) {

@@ -11,141 +11,129 @@
 </head>
 <body>
   <header class="site-header">
-    <div>
-      <p class="eyebrow">Static clinical plotting tool</p>
+    <div class="brand">
       <h1>Growth Curve Plotter</h1>
-      <p class="lede">Plot entered measurements against WHO, CDC, or local growth-curve data files. If curves do not appear, run the local setup script or deploy with the published data files.</p>
+      <p class="lede">Enter a child's measurements and plot them on the WHO or CDC reference curve of your choice.</p>
     </div>
     <nav class="top-nav" aria-label="Primary navigation">
       <a href="index.html" aria-current="page">Plot</a>
-      <a href="about.html">About / raw data</a>
+      <a href="about.html">Raw data</a>
     </nav>
   </header>
 
   <main class="layout">
-    <section class="panel controls" aria-labelledby="controls-title">
-      <h2 id="controls-title">Curve and patient</h2>
+    <section class="panel controls" aria-label="Patient and measurement entry">
 
-      <div class="form-grid">
-        <label>
-          Curve set
-          <select id="chartSelect"></select>
-        </label>
+      <div class="card">
+        <h2>Patient</h2>
+        <div class="field-grid">
+          <fieldset class="segmented" aria-label="Sex">
+            <legend>Sex</legend>
+            <label><input type="radio" name="sex" value="male" checked /> <span>Male</span></label>
+            <label><input type="radio" name="sex" value="female" /> <span>Female</span></label>
+          </fieldset>
 
-        <fieldset class="segmented" aria-label="Sex">
-          <legend>Sex</legend>
-          <label><input type="radio" name="sex" value="male" checked /> Male</label>
-          <label><input type="radio" name="sex" value="female" /> Female</label>
-        </fieldset>
+          <label class="span-2">
+            Name / label <span class="opt">optional</span>
+            <input id="patientLabel" type="text" placeholder="Local only — never uploaded" autocomplete="off" />
+          </label>
 
-        <label>
-          Patient label
-          <input id="patientLabel" type="text" placeholder="Optional; local only" autocomplete="off" />
-        </label>
+          <label>
+            Date of birth
+            <input id="dob" type="date" />
+          </label>
 
-        <label>
-          Date of birth
-          <input id="dob" type="date" />
-        </label>
+          <label>
+            Gestational age <span class="opt">optional</span>
+            <input id="gestAge" type="text" placeholder="e.g. 34 2/7" autocomplete="off" />
+          </label>
 
-        <label>
-          Optional GA at birth
-          <input id="gestAge" type="text" placeholder="e.g. 30 3/7" />
-          <span class="field-help">Use corrected age only for preterm infants when curves are age-based.</span>
-        </label>
-
-        <label class="checkbox-line">
-          <input id="useCorrectedAge" type="checkbox" />
-          Use corrected age when GA &lt; 37 weeks
-        </label>
+          <label class="checkbox-line span-2" id="correctedAgeLine" hidden>
+            <input id="useCorrectedAge" type="checkbox" />
+            <span>Use corrected age (preterm &lt; 37 weeks)</span>
+          </label>
+        </div>
       </div>
 
-      <hr />
-
-      <h3>Add measurement</h3>
-      <form id="measurementForm" class="form-grid stacked">
-        <label>
-          Date of measure
-          <input id="measureDate" type="date" />
-        </label>
-
-        <label>
-          Age if DOB/date not used (months)
-          <input id="ageMonths" type="number" inputmode="decimal" step="0.01" min="0" placeholder="e.g. 4.5" />
-          <span class="field-help">Leave blank if you enter a valid birth date and measure date.</span>
-        </label>
-
-        <label>
-          Weight (kg)
-          <input id="weightKg" type="number" inputmode="decimal" step="0.001" min="0" placeholder="e.g. 6.42" />
-        </label>
-
-        <label>
-          Length / height (cm)
-          <input id="lengthCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 62.4" />
-        </label>
-
-        <label>
-          Head circumference (cm)
-          <input id="headCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 41.2" />
-        </label>
-
-        <label class="wide">
-          Note
-          <input id="note" type="text" placeholder="Optional" autocomplete="off" />
-        </label>
-
-        <div class="button-row wide">
-          <button type="submit" class="primary">Add measurement</button>
-          <button type="button" id="clearForm">Clear form</button>
+      <div class="card">
+        <h2>Reference curve</h2>
+        <div class="field-grid">
+          <label class="span-2">
+            Measure
+            <select id="familySelect"></select>
+          </label>
+          <label class="span-2">
+            Source &amp; range
+            <select id="chartSelect"></select>
+          </label>
         </div>
-      </form>
+      </div>
 
-      <section class="quick-entry">
-        <h3>Quick clinician entry</h3>
-        <p class="small muted">Enter common measurements quickly using date, metric, and value. Use the patient DOB above to calculate age from the date.</p>
-        <div class="table-wrap">
-          <table id="quickEntryTable" class="quick-entry-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Metric</th>
-                <th>Value</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
+      <div class="card">
+        <h2>Add measurement</h2>
+        <form id="measurementForm" autocomplete="off">
+          <div class="field-grid">
+            <label>
+              Date
+              <input id="measureDate" type="date" />
+            </label>
+            <label>
+              or age (months)
+              <input id="ageMonths" type="number" inputmode="decimal" step="0.01" min="0" placeholder="auto" />
+            </label>
+            <p class="age-readout span-2" id="ageReadout"></p>
+
+            <label data-input="weight">
+              Weight (kg)
+              <input id="weightKg" type="number" inputmode="decimal" step="0.001" min="0" placeholder="e.g. 6.4" />
+            </label>
+            <label data-input="length">
+              Length / height (cm)
+              <input id="lengthCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 62.4" />
+            </label>
+            <label data-input="head">
+              Head circ. (cm)
+              <input id="headCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 41.2" />
+            </label>
+            <label data-input="note">
+              Note <span class="opt">optional</span>
+              <input id="note" type="text" placeholder="" />
+            </label>
+          </div>
+          <div class="button-row">
+            <button type="submit" class="primary">Add to chart</button>
+            <button type="button" id="clearForm" class="ghost">Clear</button>
+          </div>
+          <p class="hint">Fill in whichever values you took at this visit — only the field the selected curve needs is required.</p>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Saved data</h2>
         <div class="button-row wrap">
-          <button type="button" id="addQuickEntryRow" class="primary">Add row</button>
-          <button type="button" id="addQuickMeasurements">Add measurements</button>
+          <button id="saveAll" type="button" class="primary">Save</button>
+          <button id="loadSaved" type="button" class="ghost">Load</button>
+          <button id="exportJson" type="button" class="ghost">Export</button>
+          <label class="file-button ghost">
+            Import
+            <input id="importJson" type="file" accept="application/json,.json" />
+          </label>
+          <button id="clearAll" type="button" class="danger">Clear all</button>
         </div>
-      </section>
-
-      <hr />
-
-      <div class="button-row wrap">
-        <button id="saveAll" class="primary" type="button">Save</button>
-        <button id="loadSaved" type="button">Load saved</button>
-        <button id="exportJson" type="button">Export JSON</button>
-        <label class="file-button">
-          Import JSON
-          <input id="importJson" type="file" accept="application/json,.json" />
-        </label>
-        <button id="clearAll" class="danger" type="button">Clear all local data</button>
+        <p class="hint">Saved only in this browser (localStorage). No server, no upload.</p>
       </div>
-
-      <p class="small muted">Data persistence uses this browser’s localStorage. No server is used by this static app.</p>
     </section>
 
-    <section class="panel plot-panel" aria-labelledby="plot-title">
+    <section class="panel plot-panel" aria-label="Growth chart">
       <div class="plot-header">
         <div>
-          <h2 id="plot-title">Chart</h2>
-          <p id="chartSubtitle" class="muted">Select a curve, choose sex, and enter measurements to visualize percentiles.</p>          <p class="small muted">Patient points appear as red markers. Use the table below to track z-scores and percentile values.</p>        </div>
-        <div id="status" class="status">Loading catalog...</div>
+          <h2 id="plot-title">Growth chart</h2>
+          <p id="chartSubtitle" class="muted">Select a curve and add a measurement.</p>
+        </div>
+        <div id="status" class="status">Loading…</div>
       </div>
+
+      <div id="readout" class="readout" hidden></div>
 
       <div id="missingDataBox" class="notice hidden" role="status"></div>
 
@@ -159,15 +147,12 @@
             <tr>
               <th>Date</th>
               <th>Age</th>
-              <th>Weight (kg)</th>
-              <th>Length/height (cm)</th>
-              <th>Head circ. (cm)</th>
-              <th>Curve X</th>
-              <th>Curve Y</th>
-              <th>Z</th>
+              <th id="valueHeader">Value</th>
               <th>Percentile</th>
+              <th>Z</th>
+              <th>Velocity</th>
               <th>Note</th>
-              <th></th>
+              <th aria-label="Actions"></th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -177,7 +162,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>For clinical review and educational plotting. Verify source data and clinical interpretation before use in patient care.</p>
+    <p>For educational and clinical-review plotting. Verify source data and clinical interpretation before use in patient care.</p>
   </footer>
 </body>
 </html>

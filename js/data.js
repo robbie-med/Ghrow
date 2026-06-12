@@ -285,6 +285,46 @@
     return 'growthCurvePlotter:v1';
   }
 
+  const FAMILY_LABELS = {
+    'weight-age': 'Weight for age',
+    'height-age': 'Height / length for age',
+    'head-age': 'Head circumference for age',
+    'bmi-age': 'BMI for age',
+    'weight-height': 'Weight for length / height'
+  };
+
+  function familyLabel(family) {
+    return FAMILY_LABELS[family] || family || 'Other';
+  }
+
+  // What measurement does this curve need from the patient, in plain terms.
+  function curveInput(curve) {
+    if (!curve) return null;
+    if (curve.metric === 'weight-length' || curve.metric === 'weight-stature') return 'weight-length';
+    if (curve.metric === 'bmi-age') return 'bmi';
+    if (curve.metric === 'weight-age') return 'weight';
+    if (curve.metric === 'length-age' || curve.metric === 'stature-age') return 'length';
+    if (curve.metric === 'head-age') return 'head';
+    return null;
+  }
+
+  function ordinal(value) {
+    const n = Math.round(value);
+    const mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+    const suffix = n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th';
+    return `${n}${suffix}`;
+  }
+
+  // Percentile as a clinician-friendly string. Clamps extremes so we never print "0th"/"100th".
+  function percentileText(pct) {
+    if (!Number.isFinite(pct)) return '';
+    if (pct < 0.1) return '<1st';
+    if (pct > 99.9) return '>99th';
+    if (pct < 1) return `${pct.toFixed(1)}th`;
+    return ordinal(pct);
+  }
+
   window.GrowthData = {
     MONTH_DAYS,
     PERCENTILE_COLUMNS,
@@ -304,6 +344,10 @@
     zScoreFromLms,
     normalCdf,
     formatNumber,
-    storageKey
+    storageKey,
+    familyLabel,
+    curveInput,
+    ordinal,
+    percentileText
   };
 }());

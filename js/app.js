@@ -1,57 +1,49 @@
 (function () {
   'use strict';
 
+  const FAMILY_ORDER = ['weight-age', 'height-age', 'head-age', 'bmi-age', 'weight-height'];
+
   const state = {
     catalog: [],
+    families: new Map(), // family -> [curves]
     selectedCurve: null,
     rows: [],
     observations: [],
     chart: null
   };
 
-  const COLORS = {
-    P3: '#9aa6b2',
-    P5: '#7f8c99',
-    P10: '#708090',
-    P25: '#4f6173',
-    P50: '#2458a6',
-    P75: '#4f6173',
-    P90: '#708090',
-    P95: '#7f8c99',
-    P97: '#9aa6b2',
-    Patient: '#b42326'
-  };
-
   document.addEventListener('DOMContentLoaded', init);
 
   async function init() {
     bindEvents();
-    setMeasureDateDefault();
-    addQuickEntryRow();
+    byId('measureDate').value = todayIso();
 
     try {
       state.catalog = await GrowthData.loadCatalog();
-      populateCurveSelect();
+      groupFamilies();
+      populateFamilySelect();
+      populateSourceSelect();
       loadSaved(false);
+      syncCorrectedAgeVisibility();
+      updateAgeReadout();
       await render();
     } catch (error) {
       showStatus('Catalog load failed');
-      showMissingData(`Could not load catalog. ${error.message}`);
+      showMissingData(`Could not load the curve catalog. ${error.message}`);
     }
   }
 
   function bindEvents() {
+    byId('familySelect').addEventListener('change', () => { populateSourceSelect(); render(); });
     byId('chartSelect').addEventListener('change', render);
-    document.querySelectorAll('input[name="sex"]').forEach((input) => input.addEventListener('change', render));
+    document.querySelectorAll('input[name="sex"]').forEach((el) => el.addEventListener('change', render));
+    byId('gestAge').addEventListener('input', () => { syncCorrectedAgeVisibility(); renderChartOnly(); });
     byId('useCorrectedAge').addEventListener('change', renderChartOnly);
-    byId('gestAge').addEventListener('input', renderChartOnly);
-    byId('dob').addEventListener('change', fillAgeFromDates);
-    byId('measureDate').addEventListener('change', fillAgeFromDates);
+    byId('dob').addEventListener('change', () => { recomputeAllAges(); updateAgeReadout(); renderChartOnly(); });
+    byId('measureDate').addEventListener('change', updateAgeReadout);
+    byId('ageMonths').addEventListener('input', updateAgeReadout);
     byId('measurementForm').addEventListener('submit', addMeasurement);
-    byId('clearForm').addEventListener('click', clearMeasurementForm);
-    byId('addQuickEntryRow').addEventListener('click', addQuickEntryRow);
-    byId('addQuickMeasurements').addEventListener('click', addQuickMeasurements);
-    byId('quickEntryTable').querySelector('tbody').addEventListener('click', handleQuickEntryTableClick);
+    byId('clearForm').addEventListener('click', () => clearMeasurementForm(false));
     byId('saveAll').addEventListener('click', saveAll);
     byId('loadSaved').addEventListener('click', () => loadSaved(true));
     byId('exportJson').addEventListener('click', exportJson);
@@ -59,368 +51,430 @@
     byId('clearAll').addEventListener('click', clearAll);
   }
 
-  function populateCurveSelect() {
-    const select = byId('chartSelect');
-    select.innerHTML = '';
+  /* ---------- Curve catalog / pickers ---------- */
 
-    const groups = new Map();
+  function groupFamilies() {
+    state.families = new Map();
+    FAMILY_ORDER.forEach((f) => state.families.set(f, []));
     state.catalog.forEach((curve) => {
-      const group = curve.standard || 'Other';
-      if (!groups.has(group)) groups.set(group, []);
-      groups.get(group).push(curve);
+      const family = curve.family || 'other';
+      if (!state.families.has(family)) state.families.set(family, []);
+      state.families.get(family).push(curve);
     });
-
-    groups.forEach((curves, label) => {
-      const optgroup = document.createElement('optgroup');
-      optgroup.label = label;
-      curves.forEach((curve) => {
-        const option = document.createElement('option');
-        option.value = curve.id;
-        option.textContent = curve.label + (curve.disabled ? ' (placeholder)' : '');
-        option.disabled = Boolean(curve.disabled);
-        if (curve.disabled && curve.placeholderMessage) option.title = curve.placeholderMessage;
-        optgroup.appendChild(option);
-      });
-      select.appendChild(optgroup);
-    });
-
-    if (!select.value) {
-      const firstEnabled = state.catalog.find((curve) => !curve.disabled);
-      if (firstEnabled) select.value = firstEnabled.id;
-    }
+    // Drop empty families.
+    Array.from(state.families.entries()).forEach(([k, v]) => { if (!v.length) state.families.delete(k); });
   }
 
+  function populateFamilySelect() {
+    const select = byId('familySelect');
+    select.innerHTML = '';
+    state.families.forEach((curves, family) => {
+      const option = document.createElement('option');
+      option.value = family;
+      option.textContent = GrowthData.familyLabel(family);
+      select.appendChild(option);
+    });
+  }
+
+  function populateSourceSelect(preferredId) {
+    const select = byId('chartSelect');
+    const family = byId('familySelect').value;
+    const curves = state.families.get(family) || [];
+    select.innerHTML = '';
+    curves.forEach((curve) => {
+      const option = document.createElement('option');
+      option.value = curve.id;
+      option.textContent = curve.range ? `${curve.sourceLabel} · ${curve.range}` : curve.sourceLabel;
+      select.appendChild(option);
+    });
+    if (preferredId && curves.some((c) => c.id === preferredId)) select.value = preferredId;
+  }
+
+  function selectCurveById(id) {
+    const curve = state.catalog.find((c) => c.id === id);
+    if (!curve) return;
+    byId('familySelect').value = curve.family;
+    populateSourceSelect(id);
+  }
+
+  /* ---------- Rendering ---------- */
+
   async function render() {
-    const curveId = byId('chartSelect').value || (state.catalog[0] && state.catalog[0].id);
-    state.selectedCurve = state.catalog.find((curve) => curve.id === curveId) || state.catalog[0];
+    const curveId = byId('chartSelect').value;
+    state.selectedCurve = state.catalog.find((c) => c.id === curveId) || null;
     if (!state.selectedCurve) return;
 
-    byId('chartSubtitle').textContent = `${state.selectedCurve.standard}: ${state.selectedCurve.label}`;
+    const curve = state.selectedCurve;
+    byId('chartSubtitle').textContent =
+      `${GrowthData.familyLabel(curve.family)} — ${curve.sourceLabel}${curve.range ? ` (${curve.range})` : ''}, ${currentSex()}`;
+    byId('valueHeader').textContent = curve.yLabel || 'Value';
+    highlightActiveInputs(curve);
     hideMissingData();
-
-    if (state.selectedCurve.disabled) {
-      if (state.chart) state.chart.destroy();
-      state.chart = null;
-      state.rows = [];
-      showStatus('Curve placeholder');
-      showMissingData(state.selectedCurve.placeholderMessage || 'This curve is not yet available. Add the appropriate source CSV file and update the catalog to enable it.');
-      drawTable();
-      return;
-    }
-
-    showStatus('Loading data...');
+    showStatus('Loading curve…');
 
     try {
-      const loaded = await GrowthData.loadCurveRows(state.selectedCurve, currentSex());
+      const loaded = await GrowthData.loadCurveRows(curve, currentSex());
       state.rows = loaded.rows;
-      showStatus(`${state.rows.length.toLocaleString()} source rows`);
+      showStatus(`${state.rows.length.toLocaleString()} reference rows`);
       renderChartOnly();
     } catch (error) {
       state.rows = [];
       renderChartOnly();
-      showStatus('Data file missing');
-      showMissingData(missingDataMessage(state.selectedCurve, currentSex(), error));
+      showStatus('Reference data missing');
+      const file = GrowthData.fileForSex(curve, currentSex());
+      showMissingData(`Could not load ${file.path}. Run "node scripts/fetch-data.js" and commit the data files. (${error.message})`);
     }
   }
 
   function renderChartOnly() {
     drawChart();
-    drawTable();
+    const computed = computedRows();
+    drawReadout(computed);
+    drawTable(computed);
+  }
+
+  function highlightActiveInputs(curve) {
+    document.querySelectorAll('label[data-input]').forEach((l) => l.removeAttribute('data-active'));
+    const need = GrowthData.curveInput(curve);
+    const map = {
+      weight: ['weight'],
+      length: ['length'],
+      head: ['head'],
+      bmi: ['weight', 'length'],
+      'weight-length': ['weight', 'length']
+    };
+    (map[need] || []).forEach((key) => {
+      const label = document.querySelector(`label[data-input="${key}"]`);
+      if (label) label.setAttribute('data-active', 'true');
+    });
   }
 
   function drawChart() {
-    const canvas = byId('growthChart');
-    const ctx = canvas.getContext('2d');
+    const ctx = byId('growthChart').getContext('2d');
     const curve = state.selectedCurve;
+    if (state.chart) state.chart.destroy();
     if (!curve) return;
 
-    const percentileColumns = GrowthData.percentileColumns(state.rows);
     const datasets = [];
+    const percentileColumns = GrowthData.percentileColumns(state.rows);
 
-    percentileColumns.forEach((column) => {
+    percentileColumns.forEach((column, index) => {
+      const pct = Number(GrowthData.normalizePercentileColumn(column).slice(1));
+      const isMedian = pct === 50;
       const points = state.rows
         .filter((row) => Number.isFinite(Number(row[column])))
         .map((row) => ({ x: row.chartX, y: Number(row[column]) }));
 
       datasets.push({
         label: GrowthData.percentileLabel(column),
+        pLabel: GrowthData.ordinal(pct),
+        labelColor: 'rgba(120, 205, 175, 0.85)',
         data: points,
         parsing: false,
-        borderColor: COLORS[column] || '#7f8c99',
-        backgroundColor: COLORS[column] || '#7f8c99',
-        borderWidth: column === 'P50' ? 2.5 : 1.25,
-        borderDash: column === 'P50' ? [] : [3, 3],
+        borderColor: isMedian ? 'rgba(87, 199, 154, 0.95)' : 'rgba(87, 199, 154, 0.32)',
+        backgroundColor: 'rgba(87, 199, 154, 0.06)',
+        borderWidth: isMedian ? 2.2 : 1,
+        borderDash: isMedian ? [] : [4, 4],
+        fill: index === 0 ? false : '-1',
         pointRadius: 0,
-        tension: 0.18
+        tension: 0.25,
+        order: 2
       });
     });
 
-    const patientPoints = patientPlotPoints(curve);
     datasets.push({
       label: 'Patient',
-      data: patientPoints,
+      data: patientPlotPoints(),
       parsing: false,
-      borderColor: COLORS.Patient,
-      backgroundColor: COLORS.Patient,
-      borderWidth: 2.5,
+      borderColor: '#f08a5d',
+      backgroundColor: '#f08a5d',
+      borderWidth: 2.4,
       pointRadius: 4.5,
-      pointHoverRadius: 6,
+      pointHoverRadius: 6.5,
+      pointBackgroundColor: '#f08a5d',
+      pointBorderColor: '#11161d',
+      pointBorderWidth: 1.5,
       spanGaps: true,
-      tension: 0.08
+      tension: 0.1,
+      order: 0
     });
 
+    const gridColor = 'rgba(255, 255, 255, 0.06)';
+    const tickColor = '#8696a8';
     const options = {
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 250 },
+      layout: { padding: { right: 34, top: 6 } },
       interaction: { mode: 'nearest', intersect: false },
       plugins: {
-        legend: { position: 'bottom' },
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#dde5ef',
+            usePointStyle: true,
+            filter: (item) => item.text === 'Patient'
+          }
+        },
         tooltip: {
+          filter: (item) => item.dataset.label === 'Patient' || item.dataset.label === '50th',
           callbacks: {
-            label(context) {
-              const x = GrowthData.formatNumber(context.parsed.x, 2);
-              const y = GrowthData.formatNumber(context.parsed.y, 2);
-              return `${context.dataset.label}: ${y} at ${x}`;
-            }
+            title: (items) => `${curve.xLabel}: ${GrowthData.formatNumber(items[0].parsed.x, 1)}`,
+            label: (item) => `${item.dataset.label}: ${GrowthData.formatNumber(item.parsed.y, 2)}`
           }
         }
       },
       scales: {
         x: {
           type: 'linear',
-          title: { display: true, text: curve.xLabel || 'X' },
-          grid: { color: 'rgba(100, 114, 130, 0.18)' }
+          title: { display: true, text: curve.xLabel || 'X', color: tickColor },
+          ticks: { color: tickColor },
+          grid: { color: gridColor }
         },
         y: {
-          title: { display: true, text: curve.yLabel || 'Y' },
-          grid: { color: 'rgba(100, 114, 130, 0.18)' }
+          title: { display: true, text: curve.yLabel || 'Y', color: tickColor },
+          ticks: { color: tickColor },
+          grid: { color: gridColor }
         }
       }
     };
-
     if (Number.isFinite(curve.xMin)) options.scales.x.min = curve.xMin;
     if (Number.isFinite(curve.xMax)) options.scales.x.max = curve.xMax;
-    if (Number.isFinite(curve.yMin)) options.scales.y.min = curve.yMin;
-    if (Number.isFinite(curve.yMax)) options.scales.y.max = curve.yMax;
 
-    if (state.chart) state.chart.destroy();
-    state.chart = new Chart(ctx, { type: 'line', data: { datasets }, options });
+    state.chart = new Chart(ctx, { type: 'line', data: { datasets }, options, plugins: [pctLabelPlugin] });
   }
 
-  function patientPlotPoints(curve) {
+  const pctLabelPlugin = {
+    id: 'pctLabels',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = '600 10px Inter, system-ui, sans-serif';
+      ctx.textBaseline = 'middle';
+      chart.data.datasets.forEach((ds, i) => {
+        if (!ds.pLabel) return;
+        const meta = chart.getDatasetMeta(i);
+        if (!meta || meta.hidden || !meta.data || !meta.data.length) return;
+        const point = meta.data[meta.data.length - 1];
+        if (!point) return;
+        ctx.fillStyle = ds.labelColor || ds.borderColor;
+        ctx.fillText(ds.pLabel, point.x + 5, point.y);
+      });
+      ctx.restore();
+    }
+  };
+
+  function patientPlotPoints() {
+    const curve = state.selectedCurve;
     const opts = currentOptions();
     return state.observations
       .map((obs) => {
         const x = GrowthData.xForObservation(obs, curve, opts);
         const y = GrowthData.valueForObservation(obs, curve.metric);
         if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-        return { x, y, obs };
+        return { x, y };
       })
       .filter(Boolean)
       .sort((a, b) => a.x - b.x);
   }
 
-  function drawTable() {
-    const tbody = byId('measurementsTable').querySelector('tbody');
-    tbody.innerHTML = '';
+  /* ---------- Computed rows (table + readout + velocity) ---------- */
+
+  function computedRows() {
     const curve = state.selectedCurve;
-    if (!curve) return;
+    if (!curve) return [];
+    const opts = currentOptions();
 
-    if (!state.observations.length) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td colspan="10" class="table-empty">No patient measurements yet. Add a measurement or quick-entry row to save patient data.</td>
-      `;
-      tbody.appendChild(tr);
-      return;
-    }
-
-    state.observations.forEach((obs) => {
-      const point = patientPlotPoints(curve).find((p) => p.obs.id === obs.id);
-      const x = point ? point.x : null;
-      const y = point ? point.y : null;
+    const rows = state.observations.map((obs) => {
+      const x = GrowthData.xForObservation(obs, curve, opts);
+      const y = GrowthData.valueForObservation(obs, curve.metric);
       const lms = Number.isFinite(x) ? GrowthData.interpolateLms(state.rows, x) : null;
       const z = Number.isFinite(y) ? GrowthData.zScoreFromLms(y, lms) : null;
       const pct = Number.isFinite(z) ? GrowthData.normalCdf(z) * 100 : null;
+      return { obs, x, y, z, pct, age: numberOrNull(obs.ageMonths), measureDate: obs.measureDate };
+    });
 
+    rows.sort((a, b) => sortKey(a) - sortKey(b));
+
+    // Growth velocity vs the previous valued visit (per month) + z trend.
+    let prev = null;
+    rows.forEach((r) => {
+      r.velocity = null;
+      r.dz = null;
+      if (Number.isFinite(r.y) && Number.isFinite(r.age) && prev) {
+        const dt = r.age - prev.age;
+        if (dt > 0.01) {
+          r.velocity = (r.y - prev.y) / dt;
+          if (Number.isFinite(r.z) && Number.isFinite(prev.z)) r.dz = r.z - prev.z;
+        }
+      }
+      if (Number.isFinite(r.y) && Number.isFinite(r.age)) prev = r;
+    });
+
+    return rows;
+  }
+
+  function sortKey(r) {
+    if (Number.isFinite(r.age)) return r.age;
+    if (r.measureDate) return new Date(`${r.measureDate}T00:00:00`).getTime() / 2.6e9;
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  function drawReadout(rows) {
+    const box = byId('readout');
+    const curve = state.selectedCurve;
+    const valued = rows.filter((r) => Number.isFinite(r.y) && Number.isFinite(r.pct));
+    if (!curve || !valued.length) { box.hidden = true; box.innerHTML = ''; return; }
+
+    const latest = valued[valued.length - 1];
+    const unit = unitFromLabel(curve.yLabel);
+    const stats = [];
+
+    stats.push(stat('Latest measurement',
+      `${GrowthData.formatNumber(latest.y, 2)}<span class="sub"> ${unit}</span>`,
+      latest.measureDate ? latest.measureDate : (Number.isFinite(latest.age) ? formatAge(latest.age) : ''), true));
+
+    stats.push(stat('Percentile', GrowthData.percentileText(latest.pct),
+      `z = ${signed(latest.z, 2)}`));
+
+    if (Number.isFinite(latest.velocity)) {
+      const trend = latest.dz;
+      const arrow = !Number.isFinite(trend) ? '' :
+        trend > 0.1 ? ' <span class="trend-up">▲ gaining</span>' :
+        trend < -0.1 ? ' <span class="trend-down">▼ dropping</span>' : ' steady';
+      stats.push(stat('Velocity',
+        `${signed(latest.velocity, 2)}<span class="sub"> ${unit}/mo</span>`, `Δz ${signed(trend, 2)}${arrow}`));
+    }
+
+    box.innerHTML = stats.join('');
+    box.hidden = false;
+  }
+
+  function stat(key, value, sub, accent) {
+    return `<div class="stat${accent ? ' accent' : ''}"><span class="k">${escapeHtml(key)}</span>` +
+      `<span class="v">${value}</span>${sub ? `<span class="sub">${sub}</span>` : ''}</div>`;
+  }
+
+  function drawTable(rows) {
+    const tbody = byId('measurementsTable').querySelector('tbody');
+    const curve = state.selectedCurve;
+    tbody.innerHTML = '';
+    if (!curve) return;
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="table-empty">No measurements yet. Add one above to plot it.</td></tr>';
+      return;
+    }
+
+    const unit = unitFromLabel(curve.yLabel);
+    rows.forEach((r) => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${escapeHtml(obs.measureDate || '')}</td>
-        <td>${GrowthData.formatNumber(obs.ageMonths, 2)} mo</td>
-        <td>${Number.isFinite(obs.weightKg) ? GrowthData.formatNumber(obs.weightKg, 2) : ''}</td>
-        <td>${Number.isFinite(obs.lengthCm) ? GrowthData.formatNumber(obs.lengthCm, 2) : ''}</td>
-        <td>${Number.isFinite(obs.headCm) ? GrowthData.formatNumber(obs.headCm, 2) : ''}</td>
-        <td>${Number.isFinite(x) ? GrowthData.formatNumber(x, 2) : ''}</td>
-        <td>${Number.isFinite(y) ? GrowthData.formatNumber(y, 2) : ''}</td>
-        <td>${Number.isFinite(z) ? GrowthData.formatNumber(z, 2) : ''}</td>
-        <td>${Number.isFinite(pct) ? GrowthData.formatNumber(pct, 1) + '%' : ''}</td>
-        <td>${escapeHtml(obs.note || '')}</td>
-        <td><button type="button" data-delete="${obs.id}">Delete</button></td>
-      `;
+      let velocityCell = '';
+      if (Number.isFinite(r.velocity)) {
+        const cls = !Number.isFinite(r.dz) ? '' : r.dz > 0.1 ? 'trend-up' : r.dz < -0.1 ? 'trend-down' : '';
+        const arrow = !Number.isFinite(r.dz) ? '' : r.dz > 0.1 ? ' ▲' : r.dz < -0.1 ? ' ▼' : '';
+        velocityCell = `<span class="${cls}">${signed(r.velocity, 2)} ${escapeHtml(unit)}/mo${arrow}</span>`;
+      }
+      tr.innerHTML =
+        `<td>${escapeHtml(r.measureDate || '')}</td>` +
+        `<td>${Number.isFinite(r.age) ? formatAge(r.age) : ''}</td>` +
+        `<td>${Number.isFinite(r.y) ? GrowthData.formatNumber(r.y, 2) : '<span class="muted">—</span>'}</td>` +
+        `<td>${Number.isFinite(r.pct) ? GrowthData.percentileText(r.pct) : ''}</td>` +
+        `<td>${Number.isFinite(r.z) ? signed(r.z, 2) : ''}</td>` +
+        `<td>${velocityCell}</td>` +
+        `<td>${escapeHtml(r.obs.note || '')}</td>` +
+        `<td><button type="button" class="row-x" data-delete="${r.obs.id}" title="Delete">✕</button></td>`;
       tbody.appendChild(tr);
     });
 
-    tbody.querySelectorAll('[data-delete]').forEach((button) => {
-      button.addEventListener('click', () => {
-        state.observations = state.observations.filter((obs) => obs.id !== button.dataset.delete);
+    tbody.querySelectorAll('[data-delete]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.observations = state.observations.filter((o) => o.id !== btn.dataset.delete);
         renderChartOnly();
       });
     });
   }
 
+  /* ---------- Measurement entry ---------- */
+
   function addMeasurement(event) {
     event.preventDefault();
-    fillAgeFromDates();
+    const dob = byId('dob').value;
+    const measureDate = byId('measureDate').value;
+    let ageMonths = numericValue('ageMonths');
+    if (!Number.isFinite(ageMonths)) ageMonths = GrowthData.calculateAgeMonths(dob, measureDate);
 
-    const observation = {
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
-      measureDate: byId('measureDate').value,
-      ageMonths: numericValue('ageMonths'),
+    const obs = {
+      id: uid(),
+      measureDate,
+      ageMonths: Number.isFinite(ageMonths) ? ageMonths : null,
       weightKg: numericValue('weightKg'),
       lengthCm: numericValue('lengthCm'),
       headCm: numericValue('headCm'),
       note: byId('note').value.trim()
     };
 
-    if (!Number.isFinite(observation.ageMonths) && !observation.measureDate) {
-      showMissingData('Enter either DOB + date of measure or age in months.');
+    if (!Number.isFinite(obs.ageMonths)) {
+      showMissingData('Enter a date of birth + measurement date, or an age in months.');
       return;
     }
-    if (!Number.isFinite(observation.weightKg) && !Number.isFinite(observation.lengthCm) && !Number.isFinite(observation.headCm)) {
-      showMissingData('Enter at least one measurement value (weight, length/height, or head circumference).');
+    if (![obs.weightKg, obs.lengthCm, obs.headCm].some(Number.isFinite)) {
+      showMissingData('Enter at least one value: weight, length/height, or head circumference.');
       return;
     }
 
     hideMissingData();
-    state.observations.push(observation);
+    state.observations.push(obs);
     clearMeasurementForm(true);
     renderChartOnly();
+    showStatus('Measurement added');
+    byId(firstNeededField()).focus();
   }
 
-  function fillAgeFromDates() {
-    const dob = byId('dob').value;
-    const measureDate = byId('measureDate').value;
-    const age = GrowthData.calculateAgeMonths(dob, measureDate);
-    if (Number.isFinite(age)) byId('ageMonths').value = GrowthData.formatNumber(age, 3);
+  function firstNeededField() {
+    const need = GrowthData.curveInput(state.selectedCurve);
+    if (need === 'length') return 'lengthCm';
+    if (need === 'head') return 'headCm';
+    return 'weightKg';
   }
 
   function clearMeasurementForm(keepDate) {
     ['ageMonths', 'weightKg', 'lengthCm', 'headCm', 'note'].forEach((id) => { byId(id).value = ''; });
     if (!keepDate) byId('measureDate').value = '';
+    updateAgeReadout();
   }
 
-  function addQuickEntryRow() {
-    const tbody = byId('quickEntryTable').querySelector('tbody');
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input type="date" class="quick-date" /></td>
-      <td>
-        <select class="quick-metric">
-          <option value="weightKg">Weight (kg)</option>
-          <option value="lengthCm">Length / height (cm)</option>
-          <option value="headCm">Head circumference (cm)</option>
-        </select>
-      </td>
-      <td><input type="number" inputmode="decimal" step="0.01" min="0" class="quick-value" placeholder="Value" /></td>
-      <td><button type="button" class="quick-remove">Remove</button></td>
-    `;
-    tbody.appendChild(tr);
+  function updateAgeReadout() {
+    const out = byId('ageReadout');
+    const manual = numericValue('ageMonths');
+    if (Number.isFinite(manual)) { out.textContent = `Age: ${formatAge(manual)}`; return; }
+    const age = GrowthData.calculateAgeMonths(byId('dob').value, byId('measureDate').value);
+    out.textContent = Number.isFinite(age) ? `Age at this date: ${formatAge(age)}` : '';
   }
 
-  function handleQuickEntryTableClick(event) {
-    if (event.target.classList.contains('quick-remove')) {
-      const row = event.target.closest('tr');
-      if (row) row.remove();
-    }
-  }
-
-  function addQuickMeasurements() {
-    const rows = Array.from(byId('quickEntryTable').querySelectorAll('tbody tr'));
+  function recomputeAllAges() {
     const dob = byId('dob').value;
-    const errors = [];
-    let added = 0;
-
-    rows.forEach((row, rowIndex) => {
-      const dateInput = row.querySelector('.quick-date');
-      const metricSelect = row.querySelector('.quick-metric');
-      const valueInput = row.querySelector('.quick-value');
-      const measureDate = dateInput && dateInput.value;
-      const metricKey = metricSelect && metricSelect.value;
-      const value = numericValueFromElement(valueInput);
-      const label = metricSelect ? metricSelect.options[metricSelect.selectedIndex].text : 'Unknown metric';
-
-      if (!measureDate) {
-        errors.push(`Row ${rowIndex + 1}: missing date.`);
-        return;
+    if (!dob) return;
+    state.observations.forEach((obs) => {
+      if (obs.measureDate) {
+        const age = GrowthData.calculateAgeMonths(dob, obs.measureDate);
+        if (Number.isFinite(age)) obs.ageMonths = age;
       }
-      if (!metricKey) {
-        errors.push(`Row ${rowIndex + 1}: missing metric.`);
-        return;
-      }
-      if (!Number.isFinite(value)) {
-        errors.push(`Row ${rowIndex + 1}: missing or invalid value for ${label}.`);
-        return;
-      }
-
-      const observation = {
-        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
-        measureDate,
-        ageMonths: GrowthData.calculateAgeMonths(dob, measureDate),
-        weightKg: metricKey === 'weightKg' ? value : null,
-        lengthCm: metricKey === 'lengthCm' ? value : null,
-        headCm: metricKey === 'headCm' ? value : null,
-        note: `Quick entry: ${label}`
-      };
-
-      state.observations.push(observation);
-      added += 1;
-      row.remove();
     });
-
-    if (added > 0) {
-      hideMissingData();
-      if (!byId('quickEntryTable').querySelector('tbody tr')) addQuickEntryRow();
-      renderChartOnly();
-      showStatus(`${added} quick entr${added === 1 ? 'y' : 'ies'} added`);
-    }
-
-    if (errors.length) {
-      showMissingData(errors.join(' '));
-    }
   }
 
-  function numericValueFromElement(element) {
-    if (!element) return null;
-    const numeric = Number(element.value);
-    return Number.isFinite(numeric) ? numeric : null;
+  function syncCorrectedAgeVisibility() {
+    const ga = GrowthData.parseGestationalAgeWeeks(byId('gestAge').value);
+    const show = Number.isFinite(ga) && ga < 37;
+    byId('correctedAgeLine').hidden = !show;
+    if (!show) byId('useCorrectedAge').checked = false;
   }
 
-  function saveAll() {
-    const payload = collectPayload();
-    localStorage.setItem(GrowthData.storageKey(), JSON.stringify(payload));
-    showStatus('Saved locally');
-  }
-
-  function loadSaved(showMessage) {
-    const raw = localStorage.getItem(GrowthData.storageKey());
-    if (!raw) {
-      if (showMessage) showStatus('No saved local data');
-      return;
-    }
-
-    try {
-      const payload = JSON.parse(raw);
-      applyPayload(payload);
-      renderChartOnly();
-      if (showMessage) showStatus('Loaded saved data');
-    } catch (error) {
-      showStatus('Saved data unreadable');
-    }
-  }
+  /* ---------- Persistence ---------- */
 
   function collectPayload() {
     return {
-      version: 1,
+      version: 2,
       savedAt: new Date().toISOString(),
       curveId: byId('chartSelect').value,
       sex: currentSex(),
@@ -433,7 +487,6 @@
   }
 
   function applyPayload(payload) {
-    if (payload.curveId && state.catalog.some((curve) => curve.id === payload.curveId)) byId('chartSelect').value = payload.curveId;
     if (payload.sex) {
       const radio = document.querySelector(`input[name="sex"][value="${payload.sex}"]`);
       if (radio) radio.checked = true;
@@ -443,6 +496,24 @@
     byId('gestAge').value = payload.gestAge || '';
     byId('useCorrectedAge').checked = Boolean(payload.useCorrectedAge);
     state.observations = Array.isArray(payload.observations) ? payload.observations : [];
+    if (payload.curveId) selectCurveById(payload.curveId);
+    syncCorrectedAgeVisibility();
+  }
+
+  function saveAll() {
+    localStorage.setItem(GrowthData.storageKey(), JSON.stringify(collectPayload()));
+    showStatus('Saved to this browser');
+  }
+
+  function loadSaved(announce) {
+    const raw = localStorage.getItem(GrowthData.storageKey());
+    if (!raw) { if (announce) showStatus('No saved data found'); return; }
+    try {
+      applyPayload(JSON.parse(raw));
+      if (announce) { render(); showStatus('Loaded saved data'); }
+    } catch (error) {
+      showStatus('Saved data unreadable');
+    }
   }
 
   function exportJson() {
@@ -450,7 +521,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `growth-curve-data-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `growth-data-${todayIso()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -459,8 +530,7 @@
     const file = event.target.files && event.target.files[0];
     if (!file) return;
     try {
-      const payload = JSON.parse(await file.text());
-      applyPayload(payload);
+      applyPayload(JSON.parse(await file.text()));
       await render();
       showStatus('Imported JSON');
     } catch (error) {
@@ -471,57 +541,56 @@
   }
 
   function clearAll() {
-    if (!confirm('Clear all measurements and local saved data in this browser?')) return;
+    if (!confirm('Clear all measurements and saved data in this browser?')) return;
     state.observations = [];
     localStorage.removeItem(GrowthData.storageKey());
     renderChartOnly();
-    showStatus('Local data cleared');
+    showStatus('Cleared');
   }
 
-  function currentSex() {
-    return document.querySelector('input[name="sex"]:checked').value;
-  }
+  /* ---------- Small helpers ---------- */
 
+  function currentSex() { return document.querySelector('input[name="sex"]:checked').value; }
   function currentOptions() {
-    return {
-      gestAge: byId('gestAge').value,
-      useCorrectedAge: byId('useCorrectedAge').checked
-    };
+    return { gestAge: byId('gestAge').value, useCorrectedAge: byId('useCorrectedAge').checked };
   }
 
   function numericValue(id) {
-    const value = Number(byId(id).value);
-    return Number.isFinite(value) ? value : null;
+    const v = Number(byId(id).value);
+    return byId(id).value.trim() !== '' && Number.isFinite(v) ? v : null;
+  }
+  function numberOrNull(v) { const n = Number(v); return Number.isFinite(n) ? n : null; }
+
+  function formatAge(months) {
+    if (!Number.isFinite(months)) return '';
+    if (months < 24) return `${GrowthData.formatNumber(months, 1)} mo`;
+    return `${GrowthData.formatNumber(months / 12, 1)} yr`;
   }
 
-  function setMeasureDateDefault() {
-    byId('measureDate').value = new Date().toISOString().slice(0, 10);
+  function signed(value, digits) {
+    if (!Number.isFinite(value)) return '';
+    const s = GrowthData.formatNumber(Math.abs(value), digits);
+    return (value >= 0 ? '+' : '−') + s;
   }
 
-  function missingDataMessage(curve, sex, error) {
-    const file = GrowthData.fileForSex(curve, sex);
-    return `The selected curve file could not be loaded: ${file.path}. Run node scripts/fetch-data.js from the project root, commit the downloaded data directory, and reload the page. Details: ${error.message}`;
+  function unitFromLabel(label) {
+    const m = String(label || '').match(/\(([^)]+)\)/);
+    return m ? m[1] : '';
   }
+
+  function todayIso() { return new Date().toISOString().slice(0, 10); }
+  function uid() { return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()); }
 
   function showMissingData(message) {
     const box = byId('missingDataBox');
     box.textContent = message;
     box.classList.remove('hidden');
   }
-
-  function hideMissingData() {
-    byId('missingDataBox').classList.add('hidden');
-  }
-
-  function showStatus(message) {
-    byId('status').textContent = message;
-  }
+  function hideMissingData() { byId('missingDataBox').classList.add('hidden'); }
+  function showStatus(message) { byId('status').textContent = message; }
 
   function escapeHtml(value) {
-    return String(value).replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
+    return String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
-
-  function byId(id) {
-    return document.getElementById(id);
-  }
+  function byId(id) { return document.getElementById(id); }
 }());

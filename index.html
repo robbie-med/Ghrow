@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Growth Curve Plotter</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="js/data.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">Static clinical plotting tool</p>
+      <h1>Growth Curve Plotter</h1>
+      <p class="lede">Plot entered measurements against WHO, CDC, or added local growth-curve data files.</p>
+    </div>
+    <nav class="top-nav" aria-label="Primary navigation">
+      <a href="index.html" aria-current="page">Plot</a>
+      <a href="about.html">About / raw data</a>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section class="panel controls" aria-labelledby="controls-title">
+      <h2 id="controls-title">Curve and patient</h2>
+
+      <div class="form-grid">
+        <label>
+          Curve set
+          <select id="chartSelect"></select>
+        </label>
+
+        <fieldset class="segmented" aria-label="Sex">
+          <legend>Sex</legend>
+          <label><input type="radio" name="sex" value="male" checked /> Male</label>
+          <label><input type="radio" name="sex" value="female" /> Female</label>
+        </fieldset>
+
+        <label>
+          Patient label
+          <input id="patientLabel" type="text" placeholder="Optional; local only" autocomplete="off" />
+        </label>
+
+        <label>
+          Date of birth
+          <input id="dob" type="date" />
+        </label>
+
+        <label>
+          Optional GA at birth
+          <input id="gestAge" type="text" placeholder="e.g. 30 3/7" />
+        </label>
+
+        <label class="checkbox-line">
+          <input id="useCorrectedAge" type="checkbox" />
+          Use corrected age when GA &lt; 37 weeks
+        </label>
+      </div>
+
+      <hr />
+
+      <h3>Add measurement</h3>
+      <form id="measurementForm" class="form-grid stacked">
+        <label>
+          Date of measure
+          <input id="measureDate" type="date" />
+        </label>
+
+        <label>
+          Age if DOB/date not used (months)
+          <input id="ageMonths" type="number" inputmode="decimal" step="0.01" min="0" placeholder="e.g. 4.5" />
+        </label>
+
+        <label>
+          Weight (kg)
+          <input id="weightKg" type="number" inputmode="decimal" step="0.001" min="0" placeholder="e.g. 6.42" />
+        </label>
+
+        <label>
+          Length / height (cm)
+          <input id="lengthCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 62.4" />
+        </label>
+
+        <label>
+          Head circumference (cm)
+          <input id="headCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 41.2" />
+        </label>
+
+        <label class="wide">
+          Note
+          <input id="note" type="text" placeholder="Optional" autocomplete="off" />
+        </label>
+
+        <div class="button-row wide">
+          <button type="submit" class="primary">Add measurement</button>
+          <button type="button" id="clearForm">Clear form</button>
+        </div>
+      </form>
+
+      <hr />
+
+      <div class="button-row wrap">
+        <button id="saveAll" class="primary" type="button">Save</button>
+        <button id="loadSaved" type="button">Load saved</button>
+        <button id="exportJson" type="button">Export JSON</button>
+        <label class="file-button">
+          Import JSON
+          <input id="importJson" type="file" accept="application/json,.json" />
+        </label>
+        <button id="clearAll" class="danger" type="button">Clear all local data</button>
+      </div>
+
+      <p class="small muted">Data persistence uses this browser’s localStorage. No server is used by this static app.</p>
+    </section>
+
+    <section class="panel plot-panel" aria-labelledby="plot-title">
+      <div class="plot-header">
+        <div>
+          <h2 id="plot-title">Chart</h2>
+          <p id="chartSubtitle" class="muted">Select a curve and add measurements.</p>
+        </div>
+        <div id="status" class="status">Loading catalog...</div>
+      </div>
+
+      <div id="missingDataBox" class="notice hidden" role="status"></div>
+
+      <div class="chart-wrap">
+        <canvas id="growthChart" aria-label="Growth chart" role="img"></canvas>
+      </div>
+
+      <div class="table-wrap">
+        <table id="measurementsTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Age</th>
+              <th>Plot x</th>
+              <th>Plot y</th>
+              <th>Z</th>
+              <th>Percentile</th>
+              <th>Note</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>For clinical review and educational plotting. Verify source data and clinical interpretation before use in patient care.</p>
+  </footer>
+</body>
+</html>

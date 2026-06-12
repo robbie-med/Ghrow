@@ -1,0 +1,259 @@
+(function () {
+  'use strict';
+
+  const MONTH_DAYS = 365.2425 / 12;
+  const PERCENTILE_COLUMNS = ['P3', 'P5', 'P10', 'P25', 'P50', 'P75', 'P90', 'P95', 'P97'];
+
+  async function fetchText(path) {
+    const response = await fetch(path, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Could not load ${path} (${response.status})`);
+    }
+    return response.text();
+  }
+
+  async function loadCatalog() {
+    const response = await fetch('data/catalog.json', { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Could not load data/catalog.json (${response.status})`);
+    }
+    const catalog = await response.json();
+    return catalog.curves || [];
+  }
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let value = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text[i];
+      const next = text[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && next === '"') {
+          value += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        row.push(value);
+        value = '';
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (char === '\r' && next === '\n') i += 1;
+        row.push(value);
+        if (row.some((cell) => cell.trim() !== '')) rows.push(row);
+        row = [];
+        value = '';
+      } else {
+        value += char;
+      }
+    }
+
+    row.push(value);
+    if (row.some((cell) => cell.trim() !== '')) rows.push(row);
+    if (!rows.length) return [];
+
+    const headers = rows[0].map((header) => header.trim());
+    return rows.slice(1).map((cells) => {
+      const object = {};
+      headers.forEach((header, index) => {
+        const raw = cells[index] === undefined ? '' : cells[index].trim();
+        const numeric = Number(raw);
+        object[header] = raw !== '' && Number.isFinite(numeric) ? numeric : raw;
+      });
+      return object;
+    });
+  }
+
+  function fileForSex(curve, sex) {
+    if (curve.files && curve.files[sex]) return curve.files[sex];
+    return { path: curve.path, sourceUrl: curve.sourceUrl };
+  }
+
+  async function loadCurveRows(curve, sex) {
+    const file = fileForSex(curve, sex);
+    const csv = await fetchText(file.path);
+    let rows = parseCsv(csv);
+
+    if (curve.sexColumn) {
+      const sexValue = sex === 'male' ? curve.maleValue : curve.femaleValue;
+      rows = rows.filter((row) => String(row[curve.sexColumn]) === String(sexValue));
+    }
+
+    rows = rows
+      .map((row) => normalizeRow(row, curve))
+      .filter((row) => Number.isFinite(row.chartX) && Number.isFinite(row.L) && Number.isFinite(row.M) && Number.isFinite(row.S))
+      .sort((a, b) => a.chartX - b.chartX);
+
+    return { rows, csv, file };
+  }
+
+  function normalizeRow(row, curve) {
+    const xColumn = resolveColumn(row, curve.xColumn, curve.xColumnAliases);
+    const sourceX = Number(row[xColumn]);
+    let chartX = sourceX;
+
+    if (curve.xUnit === 'days') chartX = sourceX / MONTH_DAYS;
+    if (curve.xUnit === 'months') chartX = sourceX;
+    if (curve.xUnit === 'cm') chartX = sourceX;
+
+    return {
+      ...row,
+      sourceX,
+      chartX,
+      L: Number(row.L),
+      M: Number(row.M),
+      S: Number(row.S)
+    };
+  }
+
+  function resolveColumn(row, preferred, aliases) {
+    if (preferred && Object.prototype.hasOwnProperty.call(row, preferred)) return preferred;
+    for (const alias of aliases || []) {
+      if (Object.prototype.hasOwnProperty.call(row, alias)) return alias;
+    }
+    return preferred;
+  }
+
+  function percentileColumns(rows) {
+    const present = new Set();
+    rows.forEach((row) => {
+      Object.keys(row).forEach((key) => {
+        if (/^P\d+$/i.test(key) || /^P\d{2,3}$/i.test(key)) present.add(key);
+      });
+    });
+
+    return PERCENTILE_COLUMNS.filter((key) => present.has(key));
+  }
+
+  function valueForObservation(observation, metric) {
+    if (metric === 'weight-age') return numberOrNull(observation.weightKg);
+    if (metric === 'length-age') return numberOrNull(observation.lengthCm);
+    if (metric === 'stature-age') return numberOrNull(observation.lengthCm);
+    if (metric === 'head-age') return numberOrNull(observation.headCm);
+    if (metric === 'weight-length') return numberOrNull(observation.weightKg);
+    if (metric === 'weight-stature') return numberOrNull(observation.weightKg);
+    if (metric === 'bmi-age') {
+      const weight = numberOrNull(observation.weightKg);
+      const length = numberOrNull(observation.lengthCm);
+      if (!weight || !length) return null;
+      return weight / Math.pow(length / 100, 2);
+    }
+    return null;
+  }
+
+  function xForObservation(observation, curve, options) {
+    if (curve.xUnit === 'cm') return numberOrNull(observation.lengthCm);
+    const chronological = numberOrNull(observation.ageMonths);
+    if (!Number.isFinite(chronological)) return null;
+
+    if (!options || !options.useCorrectedAge) return chronological;
+    const gaWeeks = parseGestationalAgeWeeks(options.gestAge);
+    if (!Number.isFinite(gaWeeks) || gaWeeks >= 37) return chronological;
+    const correctionMonths = Math.max(0, (40 - gaWeeks) / 4.348125);
+    return Math.max(0, chronological - correctionMonths);
+  }
+
+  function parseGestationalAgeWeeks(value) {
+    if (!value) return null;
+    const text = String(value).trim();
+    const mixed = text.match(/^(\d{1,2})\s+(\d)\s*\/\s*7$/);
+    if (mixed) return Number(mixed[1]) + Number(mixed[2]) / 7;
+    const decimal = Number(text);
+    return Number.isFinite(decimal) ? decimal : null;
+  }
+
+  function calculateAgeMonths(dob, measureDate) {
+    if (!dob || !measureDate) return null;
+    const start = new Date(`${dob}T00:00:00`);
+    const end = new Date(`${measureDate}T00:00:00`);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end < start) return null;
+    return (end - start) / (1000 * 60 * 60 * 24) / MONTH_DAYS;
+  }
+
+  function interpolateLms(rows, x) {
+    if (!rows.length || !Number.isFinite(x)) return null;
+    if (x <= rows[0].chartX) return rows[0];
+    if (x >= rows[rows.length - 1].chartX) return rows[rows.length - 1];
+
+    for (let i = 1; i < rows.length; i += 1) {
+      if (rows[i].chartX >= x) {
+        const left = rows[i - 1];
+        const right = rows[i];
+        const span = right.chartX - left.chartX || 1;
+        const fraction = (x - left.chartX) / span;
+        return {
+          L: lerp(left.L, right.L, fraction),
+          M: lerp(left.M, right.M, fraction),
+          S: lerp(left.S, right.S, fraction)
+        };
+      }
+    }
+    return null;
+  }
+
+  function zScoreFromLms(value, lms) {
+    if (!lms || !Number.isFinite(value) || value <= 0 || !Number.isFinite(lms.M) || !Number.isFinite(lms.S)) return null;
+    if (Math.abs(lms.L) < 1e-7) return Math.log(value / lms.M) / lms.S;
+    return (Math.pow(value / lms.M, lms.L) - 1) / (lms.L * lms.S);
+  }
+
+  function normalCdf(z) {
+    return 0.5 * (1 + erf(z / Math.SQRT2));
+  }
+
+  function erf(x) {
+    const sign = x >= 0 ? 1 : -1;
+    const abs = Math.abs(x);
+    const a1 = 0.254829592;
+    const a2 = -0.284496736;
+    const a3 = 1.421413741;
+    const a4 = -1.453152027;
+    const a5 = 1.061405429;
+    const p = 0.3275911;
+    const t = 1 / (1 + p * abs);
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-abs * abs);
+    return sign * y;
+  }
+
+  function lerp(a, b, fraction) {
+    return a + (b - a) * fraction;
+  }
+
+  function numberOrNull(value) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  function formatNumber(value, digits) {
+    if (!Number.isFinite(value)) return '';
+    return Number(value).toFixed(digits).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+  }
+
+  function storageKey() {
+    return 'growthCurvePlotter:v1';
+  }
+
+  window.GrowthData = {
+    MONTH_DAYS,
+    PERCENTILE_COLUMNS,
+    fetchText,
+    loadCatalog,
+    parseCsv,
+    fileForSex,
+    loadCurveRows,
+    percentileColumns,
+    valueForObservation,
+    xForObservation,
+    calculateAgeMonths,
+    parseGestationalAgeWeeks,
+    interpolateLms,
+    zScoreFromLms,
+    normalCdf,
+    formatNumber,
+    storageKey
+  };
+}());

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>About / Raw Data | Growth Curve Plotter</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/data.js" defer></script>
+  <script src="js/about.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">Auditable source tables</p>
+      <h1>About / raw data</h1>
+      <p class="lede">The plotted curves and this page read from the same CSV files in the repository.</p>
+    </div>
+    <nav class="top-nav" aria-label="Primary navigation">
+      <a href="index.html">Plot</a>
+      <a href="about.html" aria-current="page">About / raw data</a>
+    </nav>
+  </header>
+
+  <main class="layout single">
+    <section class="panel">
+      <h2>How this app works</h2>
+      <p>The app is static. It loads a curve catalog from <code>data/catalog.json</code>, fetches the selected CSV file, plots percentile columns from that file, and uses LMS values in the same rows to estimate Z-scores and percentiles for entered measurements.</p>
+      <p>Saved patient measurements are stored only in the browser. The data files are separate from the JavaScript so the raw source can be inspected, replaced, versioned, and cited.</p>
+      <p class="warning"><strong>Clinical caution:</strong> this is not a diagnostic device. Use corrected age, curve choice, gestational-age-specific curves, and local policy carefully.</p>
+    </section>
+
+    <section class="panel">
+      <div class="plot-header">
+        <div>
+          <h2>Raw source data viewer</h2>
+          <p class="muted">Select a source file. The viewer fetches the actual local CSV used by the plotter.</p>
+        </div>
+        <div id="status" class="status">Loading catalog...</div>
+      </div>
+
+      <label>
+        Source file
+        <select id="fileSelect"></select>
+      </label>
+
+      <dl id="sourceMeta" class="meta-grid"></dl>
+
+      <div id="missingDataBox" class="notice hidden"></div>
+
+      <label>
+        Raw CSV
+        <textarea id="rawCsv" readonly spellcheck="false"></textarea>
+      </label>
+
+      <div class="table-wrap raw-table-wrap">
+        <table id="rawTable"></table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Keep downloaded files unchanged when validating against source tables.</p>
+  </footer>
+</body>
+</html>

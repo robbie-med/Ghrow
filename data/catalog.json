@@ -1,0 +1,308 @@
+{
+  "version": 1,
+  "notes": "Curves are generated from the local CSV files referenced here. The fetch script downloads these files before deployment.",
+  "curves": [
+    {
+      "id": "who-2006-weight-age-0-24m",
+      "standard": "WHO 2006",
+      "label": "Weight-for-age, 0 to 24 months",
+      "metric": "weight-age",
+      "requiredMeasurement": "weight in kg and age",
+      "xColumn": "Age",
+      "xUnit": "days",
+      "xLabel": "Age (months)",
+      "yLabel": "Weight (kg)",
+      "xMin": 0,
+      "xMax": 24,
+      "files": {
+        "male": {
+          "path": "data/who/WHO-Boys-Weight-for-age-Percentiles.csv",
+          "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Boys-Weight-for-age-Percentiles.csv"
+        },
+        "female": {
+          "path": "data/who/WHO-Girls-Weight-for-age Percentiles.csv",
+          "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Girls-Weight-for-age%20Percentiles.csv"
+        }
+      },
+      "xColumnAliases": [
+        "Age",
+        "Day",
+        "Days",
+        "Agemos"
+      ]
+    },
+    {
+      "id": "who-2006-length-age-0-24m",
+      "standard": "WHO 2006",
+      "label": "Length-for-age, 0 to 24 months",
+      "metric": "length-age",
+      "requiredMeasurement": "length in cm and age",
+      "xColumn": "Age",
+      "xUnit": "days",
+      "xLabel": "Age (months)",
+      "yLabel": "Length (cm)",
+      "xMin": 0,
+      "xMax": 24,
+      "files": {
+        "male": {
+          "path": "data/who/WHO-Boys-Length-for-age-Percentiles.csv",
+          "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Boys-Length-for-age-Percentiles.csv"
+        },
+        "female": {
+          "path": "data/who/WHO-Girls-Length-for-age-Percentiles.csv",
+          "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Girls-Length-for-age-Percentiles.csv"
+        }
+      },
+      "xColumnAliases": [
+        "Age",
+        "Day",
+        "Days",
+        "Agemos"
+      ]
+    },
+    {
+      "id": "who-2006-head-age-0-24m",
+      "standard": "WHO 2006",
+      "label": "Head circumference-for-age, 0 to 24 months",
+      "metric": "head-age",
+      "requiredMeasurement": "head circumference in cm and age",
+      "xColumn": "Age",
+      "xUnit": "days",
+      "xLabel": "Age (months)",
+      "yLabel": "Head circumference (cm)",
+      "xMin": 0,
+      "xMax": 24,
+      "files": {
+        "male": {
+          "path": "data/who/WHO-Boys-Head-Circumference-for-age-Percentiles.csv",
+          "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Boys-Head-Circumference-for-age-Percentiles.csv"
+        },
+        "female": {
+          "path": "data/who/WHO-Girls-Head-Circumference-for-age-Percentiles.csv",
+          "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Girls-Head-Circumference-for-age-Percentiles.csv"
+        }
+      },
+      "xColumnAliases": [
+        "Age",
+        "Day",
+        "Days",
+        "Agemos"
+      ]
+    },
+    {
+      "id": "who-2006-weight-length-0-24m",
+      "standard": "WHO 2006",
+      "label": "Weight-for-length, 0 to 24 months",
+      "metric": "weight-length",
+      "requiredMeasurement": "weight in kg and length in cm",
+      "xColumn": "Length",
+      "xUnit": "cm",
+      "xLabel": "Length (cm)",
+      "yLabel": "Weight (kg)",
+      "files": {
+        "male": {
+          "path": "data/who/WHO-Boys-Weight-for-length-Percentiles.csv",
+          "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Boys-Weight-for-length-Percentiles.csv"
+        },
+        "female": {
+          "path": "data/who/WHO-Girls-Weight-for-length-Percentiles.csv",
+          "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Girls-Weight-for-length-Percentiles.csv"
+        }
+      },
+      "xColumnAliases": [
+        "Length",
+        "Height",
+        "Stature",
+        "Len"
+      ]
+    },
+    {
+      "id": "cdc-2000-weight-age-2-20y",
+      "standard": "CDC 2000",
+      "label": "Weight-for-age, 2 to 20 years",
+      "metric": "weight-age",
+      "requiredMeasurement": "weight in kg and age",
+      "path": "data/cdc/wtage.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/wtage.csv",
+      "xColumn": "Agemos",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "Weight (kg)",
+      "xMin": 24,
+      "xMax": 240,
+      "sexColumn": "Sex",
+      "maleValue": 1,
+      "femaleValue": 2,
+      "xColumnAliases": [
+        "Agemos",
+        "Age",
+        "Month",
+        "Months"
+      ]
+    },
+    {
+      "id": "cdc-2000-stature-age-2-20y",
+      "standard": "CDC 2000",
+      "label": "Stature-for-age, 2 to 20 years",
+      "metric": "stature-age",
+      "requiredMeasurement": "height in cm and age",
+      "path": "data/cdc/statage.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/statage.csv",
+      "xColumn": "Agemos",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "Stature (cm)",
+      "xMin": 24,
+      "xMax": 240,
+      "sexColumn": "Sex",
+      "maleValue": 1,
+      "femaleValue": 2,
+      "xColumnAliases": [
+        "Agemos",
+        "Age",
+        "Month",
+        "Months"
+      ]
+    },
+    {
+      "id": "cdc-2000-bmi-age-2-20y",
+      "standard": "CDC 2000",
+      "label": "BMI-for-age, 2 to 20 years",
+      "metric": "bmi-age",
+      "requiredMeasurement": "weight in kg, height in cm, and age",
+      "path": "data/cdc/bmiagerev.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/bmiagerev.csv",
+      "xColumn": "Agemos",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "BMI (kg/m\u00b2)",
+      "xMin": 24,
+      "xMax": 240,
+      "sexColumn": "Sex",
+      "maleValue": 1,
+      "femaleValue": 2,
+      "xColumnAliases": [
+        "Agemos",
+        "Age",
+        "Month",
+        "Months"
+      ]
+    },
+    {
+      "id": "cdc-2000-infant-weight-age-0-36m",
+      "standard": "CDC 2000 legacy infant",
+      "label": "Weight-for-age, 0 to 36 months",
+      "metric": "weight-age",
+      "requiredMeasurement": "weight in kg and age",
+      "path": "data/cdc/wtageinf.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/wtageinf.csv",
+      "xColumn": "Agemos",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "Weight (kg)",
+      "xMin": 0,
+      "xMax": 36,
+      "sexColumn": "Sex",
+      "maleValue": 1,
+      "femaleValue": 2,
+      "xColumnAliases": [
+        "Agemos",
+        "Age",
+        "Month",
+        "Months"
+      ]
+    },
+    {
+      "id": "cdc-2000-infant-length-age-0-36m",
+      "standard": "CDC 2000 legacy infant",
+      "label": "Length-for-age, 0 to 36 months",
+      "metric": "length-age",
+      "requiredMeasurement": "length in cm and age",
+      "path": "data/cdc/lenageinf.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/lenageinf.csv",
+      "xColumn": "Agemos",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "Length (cm)",
+      "xMin": 0,
+      "xMax": 36,
+      "sexColumn": "Sex",
+      "maleValue": 1,
+      "femaleValue": 2,
+      "xColumnAliases": [
+        "Agemos",
+        "Age",
+        "Month",
+        "Months"
+      ]
+    },
+    {
+      "id": "cdc-2000-infant-head-age-0-36m",
+      "standard": "CDC 2000 legacy infant",
+      "label": "Head circumference-for-age, 0 to 36 months",
+      "metric": "head-age",
+      "requiredMeasurement": "head circumference in cm and age",
+      "path": "data/cdc/hcageinf.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/hcageinf.csv",
+      "xColumn": "Agemos",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "Head circumference (cm)",
+      "xMin": 0,
+      "xMax": 36,
+      "sexColumn": "Sex",
+      "maleValue": 1,
+      "femaleValue": 2,
+      "xColumnAliases": [
+        "Agemos",
+        "Age",
+        "Month",
+        "Months"
+      ]
+    },
+    {
+      "id": "cdc-2000-infant-weight-length",
+      "standard": "CDC 2000 legacy infant",
+      "label": "Weight-for-length",
+      "metric": "weight-length",
+      "requiredMeasurement": "weight in kg and length in cm",
+      "path": "data/cdc/wtleninf.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/wtleninf.csv",
+      "xColumn": "Length",
+      "xUnit": "cm",
+      "xLabel": "Length (cm)",
+      "yLabel": "Weight (kg)",
+      "sexColumn": "Sex",
+      "maleValue": 1,
+      "femaleValue": 2,
+      "xColumnAliases": [
+        "Length",
+        "Height",
+        "Stature",
+        "Len"
+      ]
+    },
+    {
+      "id": "cdc-2000-weight-stature",
+      "standard": "CDC 2000",
+      "label": "Weight-for-stature",
+      "metric": "weight-stature",
+      "requiredMeasurement": "weight in kg and height in cm",
+      "path": "data/cdc/wtstat.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/wtstat.csv",
+      "xColumn": "Height",
+      "xUnit": "cm",
+      "xLabel": "Stature (cm)",
+      "yLabel": "Weight (kg)",
+      "sexColumn": "Sex",
+      "maleValue": 1,
+      "femaleValue": 2,
+      "xColumnAliases": [
+        "Length",
+        "Height",
+        "Stature",
+        "Len"
+      ]
+    }
+  ]
+}

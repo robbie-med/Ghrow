@@ -88,12 +88,12 @@ Add the CSV file under `data/`, then add a record to `data/catalog.json` with:
 - `metric`
 - `path` or sex-specific `files`
 - `xColumn`
-- `xUnit`: `days`, `months`, or `cm`
+- `xUnit`: `days`, `months`, `cm`, or other numeric units such as `weeks`
 - `xLabel`
 - `yLabel`
 - optional `sexColumn`, `maleValue`, `femaleValue`
 
-The CSV needs `L`, `M`, `S`, and percentile columns such as `P3`, `P5`, `P50`, `P95`, or `P97`.
+The CSV needs `L`, `M`, `S`, and percentile columns such as `P2`, `P3`, `P5`, `P10`, `P25`, `P50`, `P75`, `P90`, `P95`, `P97`, or `P98`.
 
 ## Current catalog
 
@@ -103,6 +103,7 @@ The initial catalog supports:
 - CDC 2000 weight-for-age, stature-for-age, and BMI-for-age from 2 to 20 years.
 - CDC 2000 legacy infant weight-for-age, length-for-age, head circumference-for-age, and weight-for-length.
 - CDC 2000 weight-for-stature.
+- Placeholder entries for China 2023 growth curves, Fenton, INTERGROWTH-21st, and Down syndrome curves.
 
 ## Known limits
 

@@ -303,6 +303,91 @@
         "Stature",
         "Len"
       ]
+    },
+    {
+      "id": "fenton-2013-weight-age",
+      "standard": "Fenton 2013",
+      "label": "Preterm weight-for-age",
+      "metric": "weight-age",
+      "requiredMeasurement": "weight in kg and age",
+      "path": "data/fenton/fenton-weight-age.csv",
+      "sourceUrl": "https://example.com/fenton-weight-age.csv",
+      "xColumn": "Age",
+      "xUnit": "weeks",
+      "xLabel": "Age (weeks)",
+      "yLabel": "Weight (kg)",
+      "disabled": true,
+      "placeholderMessage": "Fenton preterm curves are placeholders. Add the source CSV at data/fenton/fenton-weight-age.csv and update catalog.json to enable this curve."
+    },
+    {
+      "id": "intergrowth-21st-length-age",
+      "standard": "INTERGROWTH-21st",
+      "label": "Length-for-age",
+      "metric": "length-age",
+      "requiredMeasurement": "length in cm and age",
+      "path": "data/intergrowth/intergrowth-length-age.csv",
+      "xColumn": "Age",
+      "xUnit": "weeks",
+      "xLabel": "Age (weeks)",
+      "yLabel": "Length (cm)",
+      "disabled": true,
+      "placeholderMessage": "INTERGROWTH-21st curves are placeholders. Add the source CSV at data/intergrowth/intergrowth-length-age.csv and update catalog.json to enable this curve."
+    },
+    {
+      "id": "china-2023-weight-age",
+      "standard": "China 2023",
+      "label": "Weight-for-age",
+      "metric": "weight-age",
+      "requiredMeasurement": "weight in kg and age",
+      "path": "data/china/china-weight-age.csv",
+      "xColumn": "Age",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "Weight (kg)",
+      "disabled": true,
+      "placeholderMessage": "China growth curves are placeholders. Add the source CSV at data/china/china-weight-age.csv and update catalog.json to enable this curve."
+    },
+    {
+      "id": "china-2023-length-age",
+      "standard": "China 2023",
+      "label": "Length-for-age",
+      "metric": "length-age",
+      "requiredMeasurement": "length in cm and age",
+      "path": "data/china/china-length-age.csv",
+      "xColumn": "Age",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "Length (cm)",
+      "disabled": true,
+      "placeholderMessage": "China growth curves are placeholders. Add the source CSV at data/china/china-length-age.csv and update catalog.json to enable this curve."
+    },
+    {
+      "id": "china-2023-head-age",
+      "standard": "China 2023",
+      "label": "Head circumference-for-age",
+      "metric": "head-age",
+      "requiredMeasurement": "head circumference in cm and age",
+      "path": "data/china/china-head-age.csv",
+      "xColumn": "Age",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "Head circumference (cm)",
+      "disabled": true,
+      "placeholderMessage": "China growth curves are placeholders. Add the source CSV at data/china/china-head-age.csv and update catalog.json to enable this curve."
+    },
+    {
+      "id": "down-syndrome-weight-age",
+      "standard": "Down syndrome",
+      "label": "Weight-for-age",
+      "metric": "weight-age",
+      "requiredMeasurement": "weight in kg and age",
+      "path": "data/down-syndrome/down-weight-age.csv",
+      "xColumn": "Age",
+      "xUnit": "months",
+      "xLabel": "Age (months)",
+      "yLabel": "Weight (kg)",
+      "disabled": true,
+      "placeholderMessage": "Down syndrome curves are placeholders. Add the source CSV at data/down-syndrome/down-weight-age.csv and update catalog.json to enable this curve."
     }
   ]
 }

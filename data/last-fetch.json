@@ -1,0 +1,101 @@
+{
+  "fetchedAt": "2026-06-12T07:49:02.257Z",
+  "files": [
+    {
+      "localPath": "data/who/WHO-Boys-Weight-for-age-Percentiles.csv",
+      "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Boys-Weight-for-age-Percentiles.csv",
+      "status": "downloaded",
+      "bytes": 2682
+    },
+    {
+      "localPath": "data/who/WHO-Girls-Weight-for-age Percentiles.csv",
+      "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Girls-Weight-for-age%20Percentiles.csv",
+      "status": "downloaded",
+      "bytes": 2738
+    },
+    {
+      "localPath": "data/who/WHO-Boys-Length-for-age-Percentiles.csv",
+      "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Boys-Length-for-age-Percentiles.csv",
+      "status": "downloaded",
+      "bytes": 2576
+    },
+    {
+      "localPath": "data/who/WHO-Girls-Length-for-age-Percentiles.csv",
+      "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Girls-Length-for-age-Percentiles.csv",
+      "status": "downloaded",
+      "bytes": 2671
+    },
+    {
+      "localPath": "data/who/WHO-Boys-Head-Circumference-for-age-Percentiles.csv",
+      "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Boys-Head-Circumference-for-age-Percentiles.csv",
+      "status": "downloaded",
+      "bytes": 2638
+    },
+    {
+      "localPath": "data/who/WHO-Girls-Head-Circumference-for-age-Percentiles.csv",
+      "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Girls-Head-Circumference-for-age-Percentiles.csv",
+      "status": "downloaded",
+      "bytes": 2638
+    },
+    {
+      "localPath": "data/who/WHO-Boys-Weight-for-length-Percentiles.csv",
+      "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Boys-Weight-for-length-Percentiles.csv",
+      "status": "downloaded",
+      "bytes": 14087
+    },
+    {
+      "localPath": "data/who/WHO-Girls-Weight-for-length-Percentiles.csv",
+      "sourceUrl": "https://ftp.cdc.gov/pub/Health_Statistics/NCHS/growthcharts/WHO-Girls-Weight-for-length-Percentiles.csv",
+      "status": "downloaded",
+      "bytes": 14091
+    },
+    {
+      "localPath": "data/cdc/wtage.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/wtage.csv",
+      "status": "downloaded",
+      "bytes": 66456
+    },
+    {
+      "localPath": "data/cdc/statage.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/statage.csv",
+      "status": "downloaded",
+      "bytes": 66087
+    },
+    {
+      "localPath": "data/cdc/bmiagerev.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/bmiagerev.csv",
+      "status": "downloaded",
+      "bytes": 72022
+    },
+    {
+      "localPath": "data/cdc/wtageinf.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/wtageinf.csv",
+      "status": "downloaded",
+      "bytes": 11446
+    },
+    {
+      "localPath": "data/cdc/lenageinf.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/lenageinf.csv",
+      "status": "downloaded",
+      "bytes": 11232
+    },
+    {
+      "localPath": "data/cdc/hcageinf.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/hcageinf.csv",
+      "status": "downloaded",
+      "bytes": 11486
+    },
+    {
+      "localPath": "data/cdc/wtleninf.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/wtleninf.csv",
+      "status": "downloaded",
+      "bytes": 18242
+    },
+    {
+      "localPath": "data/cdc/wtstat.csv",
+      "sourceUrl": "https://www.cdc.gov/growthcharts/data/zscore/wtstat.csv",
+      "status": "downloaded",
+      "bytes": 15145
+    }
+  ]
+}

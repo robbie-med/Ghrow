@@ -27,6 +27,7 @@
   async function init() {
     bindEvents();
     setMeasureDateDefault();
+    addQuickEntryRow();
 
     try {
       state.catalog = await GrowthData.loadCatalog();
@@ -48,6 +49,9 @@
     byId('measureDate').addEventListener('change', fillAgeFromDates);
     byId('measurementForm').addEventListener('submit', addMeasurement);
     byId('clearForm').addEventListener('click', clearMeasurementForm);
+    byId('addQuickEntryRow').addEventListener('click', addQuickEntryRow);
+    byId('addQuickMeasurements').addEventListener('click', addQuickMeasurements);
+    byId('quickEntryTable').querySelector('tbody').addEventListener('click', handleQuickEntryTableClick);
     byId('saveAll').addEventListener('click', saveAll);
     byId('loadSaved').addEventListener('click', () => loadSaved(true));
     byId('exportJson').addEventListener('click', exportJson);
@@ -72,11 +76,18 @@
       curves.forEach((curve) => {
         const option = document.createElement('option');
         option.value = curve.id;
-        option.textContent = curve.label;
+        option.textContent = curve.label + (curve.disabled ? ' (placeholder)' : '');
+        option.disabled = Boolean(curve.disabled);
+        if (curve.disabled && curve.placeholderMessage) option.title = curve.placeholderMessage;
         optgroup.appendChild(option);
       });
       select.appendChild(optgroup);
     });
+
+    if (!select.value) {
+      const firstEnabled = state.catalog.find((curve) => !curve.disabled);
+      if (firstEnabled) select.value = firstEnabled.id;
+    }
   }
 
   async function render() {
@@ -86,6 +97,17 @@
 
     byId('chartSubtitle').textContent = `${state.selectedCurve.standard}: ${state.selectedCurve.label}`;
     hideMissingData();
+
+    if (state.selectedCurve.disabled) {
+      if (state.chart) state.chart.destroy();
+      state.chart = null;
+      state.rows = [];
+      showStatus('Curve placeholder');
+      showMissingData(state.selectedCurve.placeholderMessage || 'This curve is not yet available. Add the appropriate source CSV file and update the catalog to enable it.');
+      drawTable();
+      return;
+    }
+
     showStatus('Loading data...');
 
     try {
@@ -121,7 +143,7 @@
         .map((row) => ({ x: row.chartX, y: Number(row[column]) }));
 
       datasets.push({
-        label: column.replace('P', '') + 'th',
+        label: GrowthData.percentileLabel(column),
         data: points,
         parsing: false,
         borderColor: COLORS[column] || '#7f8c99',
@@ -204,7 +226,18 @@
     const curve = state.selectedCurve;
     if (!curve) return;
 
-    patientPlotPoints(curve).forEach((point) => {
+    const points = patientPlotPoints(curve);
+
+    if (!points.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td colspan="8" class="table-empty">No patient measurements yet. Add a measurement to plot points and calculate percentiles.</td>
+      `;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    points.forEach((point) => {
       const lms = GrowthData.interpolateLms(state.rows, point.x);
       const z = GrowthData.zScoreFromLms(point.y, lms);
       const pct = Number.isFinite(z) ? GrowthData.normalCdf(z) * 100 : null;
@@ -276,6 +309,89 @@
   function clearMeasurementForm(keepDate) {
     ['ageMonths', 'weightKg', 'lengthCm', 'headCm', 'note'].forEach((id) => { byId(id).value = ''; });
     if (!keepDate) byId('measureDate').value = '';
+  }
+
+  function addQuickEntryRow() {
+    const tbody = byId('quickEntryTable').querySelector('tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="date" class="quick-date" /></td>
+      <td>
+        <select class="quick-metric">
+          <option value="weightKg">Weight (kg)</option>
+          <option value="lengthCm">Length / height (cm)</option>
+          <option value="headCm">Head circumference (cm)</option>
+        </select>
+      </td>
+      <td><input type="number" inputmode="decimal" step="0.01" min="0" class="quick-value" placeholder="Value" /></td>
+      <td><button type="button" class="quick-remove">Remove</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  function handleQuickEntryTableClick(event) {
+    if (event.target.classList.contains('quick-remove')) {
+      const row = event.target.closest('tr');
+      if (row) row.remove();
+    }
+  }
+
+  function addQuickMeasurements() {
+    const rows = Array.from(byId('quickEntryTable').querySelectorAll('tbody tr'));
+    const dob = byId('dob').value;
+    const curve = state.selectedCurve;
+    let added = 0;
+    let errors = [];
+
+    rows.forEach((row) => {
+      const dateInput = row.querySelector('.quick-date');
+      const metricSelect = row.querySelector('.quick-metric');
+      const valueInput = row.querySelector('.quick-value');
+      const measureDate = dateInput && dateInput.value;
+      const metricKey = metricSelect && metricSelect.value;
+      const value = numericValueFromElement(valueInput);
+
+      if (!measureDate || !metricKey || !Number.isFinite(value)) return;
+
+      const observation = {
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+        measureDate,
+        ageMonths: GrowthData.calculateAgeMonths(dob, measureDate),
+        weightKg: metricKey === 'weightKg' ? value : null,
+        lengthCm: metricKey === 'lengthCm' ? value : null,
+        headCm: metricKey === 'headCm' ? value : null,
+        note: `Quick entry: ${metricSelect.options[metricSelect.selectedIndex].text}`
+      };
+
+      const x = GrowthData.xForObservation(observation, curve, currentOptions());
+      const y = GrowthData.valueForObservation(observation, curve.metric);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        errors.push(`Row for ${measureDate} not added: ${curve.requiredMeasurement || 'matching measure'} is missing for ${curve.label}.`);
+        return;
+      }
+
+      state.observations.push(observation);
+      added += 1;
+      row.remove();
+    });
+
+    if (added === 0 && errors.length) {
+      showMissingData(errors.join(' '));
+      return;
+    }
+
+    if (added > 0) {
+      hideMissingData();
+      if (!byId('quickEntryTable').querySelector('tbody tr')) addQuickEntryRow();
+      renderChartOnly();
+      showStatus(`${added} quick measurement${added === 1 ? '' : 's'} added`);
+    }
+  }
+
+  function numericValueFromElement(element) {
+    if (!element) return null;
+    const numeric = Number(element.value);
+    return Number.isFinite(numeric) ? numeric : null;
   }
 
   function saveAll() {

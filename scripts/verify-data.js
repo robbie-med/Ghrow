@@ -9,9 +9,20 @@ const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'catalog.json
 const required = ['L', 'M', 'S'];
 let failures = 0;
 
+function normalizePercentileColumn(column) {
+  if (!column) return null;
+  const raw = String(column).trim();
+  const pMatch = raw.match(/^P\s*(\d{1,3})$/i);
+  if (pMatch) return `P${Number(pMatch[1])}`;
+  const ordinalMatch = raw.match(/^(\d{1,3}(?:\.\d+)?)\s*(?:st|nd|rd|th)\b/i);
+  if (ordinalMatch) return `P${Math.round(Number(ordinalMatch[1]))}`;
+  return null;
+}
+
 function filesFromCatalog() {
   const map = new Map();
   for (const curve of catalog.curves || []) {
+    if (curve.disabled) continue;
     if (curve.files) {
       for (const file of Object.values(curve.files)) map.set(file.path, file.path);
     } else {
@@ -31,7 +42,7 @@ for (const localPath of filesFromCatalog()) {
 
   const header = fs.readFileSync(fullPath, 'utf8').split(/\r?\n/, 1)[0].split(',').map((x) => x.trim());
   const missing = required.filter((column) => !header.includes(column));
-  const percentileCount = header.filter((column) => /^P\d+$/i.test(column)).length;
+  const percentileCount = header.filter((column) => normalizePercentileColumn(column)).length;
 
   if (missing.length || percentileCount === 0) {
     console.error(`bad header ${localPath}: missing ${missing.join(', ') || 'percentile columns'}`);

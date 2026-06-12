@@ -14,7 +14,7 @@
     <div>
       <p class="eyebrow">Static clinical plotting tool</p>
       <h1>Growth Curve Plotter</h1>
-      <p class="lede">Plot entered measurements against WHO, CDC, or added local growth-curve data files.</p>
+      <p class="lede">Plot entered measurements against WHO, CDC, or local growth-curve data files. If curves do not appear, run the local setup script or deploy with the published data files.</p>
     </div>
     <nav class="top-nav" aria-label="Primary navigation">
       <a href="index.html" aria-current="page">Plot</a>
@@ -51,6 +51,7 @@
         <label>
           Optional GA at birth
           <input id="gestAge" type="text" placeholder="e.g. 30 3/7" />
+          <span class="field-help">Use corrected age only for preterm infants when curves are age-based.</span>
         </label>
 
         <label class="checkbox-line">
@@ -71,6 +72,7 @@
         <label>
           Age if DOB/date not used (months)
           <input id="ageMonths" type="number" inputmode="decimal" step="0.01" min="0" placeholder="e.g. 4.5" />
+          <span class="field-help">Leave blank if you enter a valid birth date and measure date.</span>
         </label>
 
         <label>
@@ -99,6 +101,28 @@
         </div>
       </form>
 
+      <section class="quick-entry">
+        <h3>Quick clinician entry</h3>
+        <p class="small muted">Enter common measurements quickly using date, metric, and value. Use the patient DOB above to calculate age from the date.</p>
+        <div class="table-wrap">
+          <table id="quickEntryTable" class="quick-entry-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Metric</th>
+                <th>Value</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="button-row wrap">
+          <button type="button" id="addQuickEntryRow" class="primary">Add row</button>
+          <button type="button" id="addQuickMeasurements">Add measurements</button>
+        </div>
+      </section>
+
       <hr />
 
       <div class="button-row wrap">
@@ -119,8 +143,7 @@
       <div class="plot-header">
         <div>
           <h2 id="plot-title">Chart</h2>
-          <p id="chartSubtitle" class="muted">Select a curve and add measurements.</p>
-        </div>
+          <p id="chartSubtitle" class="muted">Select a curve, choose sex, and enter measurements to visualize percentiles.</p>          <p class="small muted">Patient points appear as red markers. Use the table below to track z-scores and percentile values.</p>        </div>
         <div id="status" class="status">Loading catalog...</div>
       </div>
 

@@ -2,7 +2,7 @@
   'use strict';
 
   const MONTH_DAYS = 365.2425 / 12;
-  const PERCENTILE_COLUMNS = ['P3', 'P5', 'P10', 'P25', 'P50', 'P75', 'P90', 'P95', 'P97'];
+  const PERCENTILE_COLUMNS = ['P2', 'P3', 'P5', 'P10', 'P25', 'P50', 'P75', 'P90', 'P95', 'P97', 'P98'];
 
   async function fetchText(path) {
     const response = await fetch(path, { cache: 'no-store' });
@@ -97,6 +97,7 @@
     let chartX = sourceX;
 
     if (curve.xUnit === 'days') chartX = sourceX / MONTH_DAYS;
+    if (curve.xUnit === 'weeks') chartX = sourceX / 4.348125;
     if (curve.xUnit === 'months') chartX = sourceX;
     if (curve.xUnit === 'cm') chartX = sourceX;
 
@@ -110,6 +111,24 @@
     };
   }
 
+  function normalizePercentileColumn(column) {
+    if (!column) return null;
+    const raw = String(column).trim();
+    const pMatch = raw.match(/^P\s*(\d{1,3})$/i);
+    if (pMatch) return `P${Number(pMatch[1])}`;
+    const ordinalMatch = raw.match(/^(\d{1,3}(?:\.\d+)?)\s*(?:st|nd|rd|th)\b/i);
+    if (ordinalMatch) return `P${Math.round(Number(ordinalMatch[1]))}`;
+    return null;
+  }
+
+  function percentileLabel(column) {
+    const normalized = normalizePercentileColumn(column);
+    if (!normalized) return String(column);
+    const value = Number(normalized.slice(1));
+    const suffix = value === 1 ? 'st' : value === 2 ? 'nd' : value === 3 ? 'rd' : 'th';
+    return `${value}${suffix}`;
+  }
+
   function resolveColumn(row, preferred, aliases) {
     if (preferred && Object.prototype.hasOwnProperty.call(row, preferred)) return preferred;
     for (const alias of aliases || []) {
@@ -119,14 +138,17 @@
   }
 
   function percentileColumns(rows) {
-    const present = new Set();
+    const columns = new Map();
     rows.forEach((row) => {
       Object.keys(row).forEach((key) => {
-        if (/^P\d+$/i.test(key) || /^P\d{2,3}$/i.test(key)) present.add(key);
+        const normalized = normalizePercentileColumn(key);
+        if (normalized) columns.set(key, normalized);
       });
     });
 
-    return PERCENTILE_COLUMNS.filter((key) => present.has(key));
+    return Array.from(columns.entries())
+      .sort((a, b) => Number(a[1].slice(1)) - Number(b[1].slice(1)))
+      .map(([key]) => key);
   }
 
   function valueForObservation(observation, metric) {
@@ -245,6 +267,8 @@
     parseCsv,
     fileForSex,
     loadCurveRows,
+    normalizePercentileColumn,
+    percentileLabel,
     percentileColumns,
     valueForObservation,
     xForObservation,

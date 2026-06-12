@@ -22,6 +22,7 @@
     const map = new Map();
 
     catalog.forEach((curve) => {
+      if (curve.disabled) return;
       if (curve.files) {
         Object.entries(curve.files).forEach(([sex, file]) => {
           addFile(map, curve, file, sex);

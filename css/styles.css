@@ -466,6 +466,52 @@ td .row-x:hover { background: rgba(239, 125, 125, 0.15); color: var(--danger); }
 .small { font-size: 0.82rem; }
 
 /* ---------- About page bits ---------- */
+.ref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.ref-card {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+.ref-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.ref-card h3 { margin: 0; font-size: 1.05rem; }
+.ref-card p { margin: 0 0 8px; font-size: 0.88rem; color: var(--ink-soft); }
+.ref-card p:last-child { margin-bottom: 0; }
+.ref-card .ref-src { color: var(--muted); font-size: 0.82rem; }
+.ref-card strong { color: var(--ink); }
+
+.tag {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tag-pending {
+  color: var(--warning);
+  background: rgba(227, 180, 106, 0.12);
+  border: 1px solid rgba(227, 180, 106, 0.4);
+}
+.tag-ready {
+  color: var(--good);
+  background: rgba(87, 199, 154, 0.12);
+  border: 1px solid rgba(87, 199, 154, 0.4);
+}
+
 .meta-grid {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);

@@ -5,33 +5,62 @@ Static GitHub Pages web app for plotting entered pediatric measurements against 
 ## What is included
 
 - `index.html`: measurement entry, plotting, save/load/export/import.
-- `about.html`: explanation and raw CSV viewer.
-- `css/styles.css`: page styling.
-- `js/data.js`: CSV loading, LMS math, age calculation, local persistence helpers.
-- `js/app.js`: chart and measurement UI.
-- `js/about.js`: raw data viewer.
-- `data/catalog.json`: auditable registry of each curve and source file.
-- `scripts/fetch-data.js`: downloads the official CSV files listed in the catalog.
-- `scripts/verify-data.js`: basic source-file validation.
+# Growth Curve Plotter
 
-## First setup
+[![GitHub release](https://img.shields.io/github/v/release/robbie-med/Ghrow?label=release)](https://github.com/robbie-med/Ghrow/releases)
+[![License](https://img.shields.io/github/license/robbie-med/Ghrow)](LICENSE)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-ready-blue)](https://robbie-med.github.io/Ghrow/)
+[![Repo size](https://img.shields.io/github/repo-size/robbie-med/Ghrow)](https://github.com/robbie-med/Ghrow)
 
-From the project root:
+A lightweight static growth-curve plotter for pediatric measurements, built to be fully auditable, extensible, and deployable as GitHub Pages.
+
+## Why this repo exists
+
+This project puts all growth-curve source files, catalog metadata, and plotting logic in plain HTML/CSS/JavaScript so clinicians and reviewers can inspect the raw data, extend the catalog, and run the app without a backend.
+
+It is designed for:
+
+- fast patient data entry in a browser
+- plotting entered measurements against WHO, CDC, and special-curve backgrounds
+- saving and importing/exporting patient data locally
+- keeping source CSV files visible and auditable
+
+> Clinical caution: this app is a review and plotting tool, not a diagnostic system.
+
+## Badges
+
+- `Static web app` using HTML, CSS, and vanilla JavaScript
+- `Data-driven` through `data/catalog.json` and CSV curve tables
+- `Offline-first` patient persistence via browser localStorage
+- `Extensible` with new growth curves added via catalog entries
+
+## Features
+
+- curve selector with WHO / CDC / placeholder special populations
+- patient entry form plus row-based quick entry table
+- dynamic chart rendering with percentiles and patient markers
+- full raw CSV viewer on `about.html`
+- browser JSON export/import and local save/load
+- source-file validation scripts for safe publishing
+
+## Repo contents
+
+- `index.html` — app interface, data entry, plot, table, and utilities
+- `about.html` — raw CSV browser and catalog metadata viewer
+- `css/styles.css` — dark-mode-friendly app styling
+- `js/data.js` — CSV parsing, LMS math, and growth-curve helpers
+- `js/app.js` — application state, chart rendering, and form logic
+- `js/about.js` — raw data viewer logic
+- `data/catalog.json` — registry of curve metadata and paths
+- `scripts/fetch-data.js` — fetches official CSV files from source URLs
+- `scripts/verify-data.js` — validates downloaded CSV header structure
+- `LICENSE` — MIT license for open use and contribution
+
+## Quick start
 
 ```bash
 node scripts/fetch-data.js
 node scripts/verify-data.js
-```
-
-Then commit the downloaded `data/cdc/*.csv` and `data/who/*.csv` files with the rest of the site before enabling GitHub Pages.
-
-The app intentionally does not hide source tables inside JavaScript. The plotter and About page read the same files from `data/catalog.json`.
-
-## Run locally
-
-Because browsers often block `fetch()` from local `file://` pages, run a tiny local server:
-
-```bash
 python3 -m http.server 8000
 ```
 
@@ -41,46 +70,16 @@ Then open:
 http://localhost:8000/
 ```
 
-## GitHub Pages deployment
+## Deploy to GitHub Pages
 
-1. Create a repository.
-2. Copy this folder into the repository root.
-3. Run `node scripts/fetch-data.js`.
-4. Commit the downloaded data files.
-5. In GitHub repository settings, enable Pages from the main branch root.
+1. Push this repository to GitHub.
+2. Run `node scripts/fetch-data.js` and commit the downloaded data files.
+3. In repository settings, enable Pages from the `main` branch root.
+4. Visit the published URL for the static app.
 
-No backend, account system, or database is required.
+## Adding new curves
 
-## Data persistence
-
-Measurements are saved to browser `localStorage` only when the user presses Save. This means:
-
-- No measurement data is uploaded by the app.
-- Saved data is device/browser specific.
-- Clearing site data or using another browser removes access to those saved measurements.
-- Use Export JSON / Import JSON for transfer or backup.
-
-Avoid entering directly identifiable patient information unless your deployment and device context are appropriate.
-
-## Curve math
-
-The app plots percentile columns directly from the selected CSV. For patient-entered points, it interpolates the local LMS row and calculates the Z-score using:
-
-```text
-Z = ((value / M)^L - 1) / (L * S)
-```
-
-When `L` is approximately zero, it uses:
-
-```text
-Z = ln(value / M) / S
-```
-
-The displayed percentile is the standard normal CDF of the Z-score.
-
-## Adding another curve set
-
-Add the CSV file under `data/`, then add a record to `data/catalog.json` with:
+Add the source CSV to `data/` and register it in `data/catalog.json` with fields such as:
 
 - `id`
 - `standard`
@@ -88,27 +87,43 @@ Add the CSV file under `data/`, then add a record to `data/catalog.json` with:
 - `metric`
 - `path` or sex-specific `files`
 - `xColumn`
-- `xUnit`: `days`, `months`, `cm`, or other numeric units such as `weeks`
+- `xUnit` (`days`, `weeks`, `months`, `cm`)
 - `xLabel`
 - `yLabel`
 - optional `sexColumn`, `maleValue`, `femaleValue`
 
-The CSV needs `L`, `M`, `S`, and percentile columns such as `P2`, `P3`, `P5`, `P10`, `P25`, `P50`, `P75`, `P90`, `P95`, `P97`, or `P98`.
+The CSV must include `L`, `M`, `S`, and percentile columns. This repo supports both numeric and ordinal percentile headers such as `P3`, `5th`, `50th`, and `98th`.
 
-## Current catalog
+## Supported curves
 
-The initial catalog supports:
+Out of the box, this repo includes:
 
-- WHO 2006 weight-for-age, length-for-age, head circumference-for-age, and weight-for-length from 0 to 24 months.
-- CDC 2000 weight-for-age, stature-for-age, and BMI-for-age from 2 to 20 years.
-- CDC 2000 legacy infant weight-for-age, length-for-age, head circumference-for-age, and weight-for-length.
-- CDC 2000 weight-for-stature.
-- Placeholder entries for China 2023 growth curves, Fenton, INTERGROWTH-21st, and Down syndrome curves.
+- WHO 2006 weight-for-age, length-for-age, head circumference-for-age, weight-for-length
+- CDC 2000 weight-for-age, stature-for-age, BMI-for-age
+- CDC 2000 legacy infant weight-for-age, length-for-age, head circumference-for-age, weight-for-length
+- CDC 2000 weight-for-stature
+- placeholder entries for Fenton, INTERGROWTH-21st, China 2023, and Down syndrome curves
 
-## Known limits
+## Clinical data handling
 
-- No server-side database.
-- No audit log.
-- No EHR integration.
-- Corrected age is a plotting convenience, not a replacement for clinical judgment.
-- Fenton, INTERGROWTH-21st, Down syndrome, and other special-population curves can be added through the catalog if compatible source tables are placed in `data/`.
+- Measurements are saved only to browser `localStorage` when the user clicks Save.
+- Export JSON / Import JSON enables transfer between devices.
+- No patient data is uploaded to any server.
+- Use the app in contexts where local patient data handling is appropriate.
+
+## Contribution
+
+Pull requests are welcome. For improvements, consider:
+
+- adding additional curve sources
+- improving raw-data validation
+- refining chart UI and accessibility
+- adding automated tests or CI workflows
+
+## License
+
+This project is available under the [MIT License](LICENSE).
+
+## Repository tags
+
+Pediatric growth curves · WHO · CDC · Fenton · INTERGROWTH-21st · Down syndrome · clinical plotting · static web app · audit-friendly

@@ -226,29 +226,32 @@
     const curve = state.selectedCurve;
     if (!curve) return;
 
-    const points = patientPlotPoints(curve);
-
-    if (!points.length) {
+    if (!state.observations.length) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td colspan="8" class="table-empty">No patient measurements yet. Add a measurement to plot points and calculate percentiles.</td>
+        <td colspan="10" class="table-empty">No patient measurements yet. Add a measurement or quick-entry row to save patient data.</td>
       `;
       tbody.appendChild(tr);
       return;
     }
 
-    points.forEach((point) => {
-      const lms = GrowthData.interpolateLms(state.rows, point.x);
-      const z = GrowthData.zScoreFromLms(point.y, lms);
+    state.observations.forEach((obs) => {
+      const point = patientPlotPoints(curve).find((p) => p.obs.id === obs.id);
+      const x = point ? point.x : null;
+      const y = point ? point.y : null;
+      const lms = Number.isFinite(x) ? GrowthData.interpolateLms(state.rows, x) : null;
+      const z = Number.isFinite(y) ? GrowthData.zScoreFromLms(y, lms) : null;
       const pct = Number.isFinite(z) ? GrowthData.normalCdf(z) * 100 : null;
-      const obs = point.obs;
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(obs.measureDate || '')}</td>
         <td>${GrowthData.formatNumber(obs.ageMonths, 2)} mo</td>
-        <td>${GrowthData.formatNumber(point.x, 2)}</td>
-        <td>${GrowthData.formatNumber(point.y, 2)}</td>
+        <td>${Number.isFinite(obs.weightKg) ? GrowthData.formatNumber(obs.weightKg, 2) : ''}</td>
+        <td>${Number.isFinite(obs.lengthCm) ? GrowthData.formatNumber(obs.lengthCm, 2) : ''}</td>
+        <td>${Number.isFinite(obs.headCm) ? GrowthData.formatNumber(obs.headCm, 2) : ''}</td>
+        <td>${Number.isFinite(x) ? GrowthData.formatNumber(x, 2) : ''}</td>
+        <td>${Number.isFinite(y) ? GrowthData.formatNumber(y, 2) : ''}</td>
         <td>${Number.isFinite(z) ? GrowthData.formatNumber(z, 2) : ''}</td>
         <td>${Number.isFinite(pct) ? GrowthData.formatNumber(pct, 1) + '%' : ''}</td>
         <td>${escapeHtml(obs.note || '')}</td>
@@ -269,27 +272,22 @@
     event.preventDefault();
     fillAgeFromDates();
 
-    const ageMonths = numericValue('ageMonths');
     const observation = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
       measureDate: byId('measureDate').value,
-      ageMonths,
+      ageMonths: numericValue('ageMonths'),
       weightKg: numericValue('weightKg'),
       lengthCm: numericValue('lengthCm'),
       headCm: numericValue('headCm'),
       note: byId('note').value.trim()
     };
 
-    const curve = state.selectedCurve;
-    const x = GrowthData.xForObservation(observation, curve, currentOptions());
-    const y = GrowthData.valueForObservation(observation, curve.metric);
-
-    if (!Number.isFinite(x)) {
+    if (!Number.isFinite(observation.ageMonths) && !observation.measureDate) {
       showMissingData('Enter either DOB + date of measure or age in months.');
       return;
     }
-    if (!Number.isFinite(y)) {
-      showMissingData(`This curve requires ${curve.requiredMeasurement || 'the matching measurement value'}.`);
+    if (!Number.isFinite(observation.weightKg) && !Number.isFinite(observation.lengthCm) && !Number.isFinite(observation.headCm)) {
+      showMissingData('Enter at least one measurement value (weight, length/height, or head circumference).');
       return;
     }
 
@@ -339,19 +337,30 @@
   function addQuickMeasurements() {
     const rows = Array.from(byId('quickEntryTable').querySelectorAll('tbody tr'));
     const dob = byId('dob').value;
-    const curve = state.selectedCurve;
+    const errors = [];
     let added = 0;
-    let errors = [];
 
-    rows.forEach((row) => {
+    rows.forEach((row, rowIndex) => {
       const dateInput = row.querySelector('.quick-date');
       const metricSelect = row.querySelector('.quick-metric');
       const valueInput = row.querySelector('.quick-value');
       const measureDate = dateInput && dateInput.value;
       const metricKey = metricSelect && metricSelect.value;
       const value = numericValueFromElement(valueInput);
+      const label = metricSelect ? metricSelect.options[metricSelect.selectedIndex].text : 'Unknown metric';
 
-      if (!measureDate || !metricKey || !Number.isFinite(value)) return;
+      if (!measureDate) {
+        errors.push(`Row ${rowIndex + 1}: missing date.`);
+        return;
+      }
+      if (!metricKey) {
+        errors.push(`Row ${rowIndex + 1}: missing metric.`);
+        return;
+      }
+      if (!Number.isFinite(value)) {
+        errors.push(`Row ${rowIndex + 1}: missing or invalid value for ${label}.`);
+        return;
+      }
 
       const observation = {
         id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
@@ -360,31 +369,23 @@
         weightKg: metricKey === 'weightKg' ? value : null,
         lengthCm: metricKey === 'lengthCm' ? value : null,
         headCm: metricKey === 'headCm' ? value : null,
-        note: `Quick entry: ${metricSelect.options[metricSelect.selectedIndex].text}`
+        note: `Quick entry: ${label}`
       };
-
-      const x = GrowthData.xForObservation(observation, curve, currentOptions());
-      const y = GrowthData.valueForObservation(observation, curve.metric);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        errors.push(`Row for ${measureDate} not added: ${curve.requiredMeasurement || 'matching measure'} is missing for ${curve.label}.`);
-        return;
-      }
 
       state.observations.push(observation);
       added += 1;
       row.remove();
     });
 
-    if (added === 0 && errors.length) {
-      showMissingData(errors.join(' '));
-      return;
-    }
-
     if (added > 0) {
       hideMissingData();
       if (!byId('quickEntryTable').querySelector('tbody tr')) addQuickEntryRow();
       renderChartOnly();
-      showStatus(`${added} quick measurement${added === 1 ? '' : 's'} added`);
+      showStatus(`${added} quick entr${added === 1 ? 'y' : 'ies'} added`);
+    }
+
+    if (errors.length) {
+      showMissingData(errors.join(' '));
     }
   }
 

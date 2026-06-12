@@ -43,6 +43,7 @@ The reference CSVs are committed to the repo, so the app also works without runn
 - `js/data.js` — CSV parsing, LMS math, percentile/Z helpers
 - `js/app.js` — application state, chart rendering, and form logic
 - `js/about.js` — raw data viewer logic
+- `js/lib/chart.umd.min.js` — vendored [Chart.js](https://www.chartjs.org/) (no CDN; fully self-contained)
 - `data/catalog.json` — registry of curve metadata and file paths
 - `scripts/fetch-data.js` — downloads the official source CSVs
 - `scripts/verify-data.js` — validates downloaded CSV headers

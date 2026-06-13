@@ -44,6 +44,7 @@
     byId('ageMonths').addEventListener('input', updateAgeReadout);
     byId('measurementForm').addEventListener('submit', addMeasurement);
     byId('clearForm').addEventListener('click', () => clearMeasurementForm(false));
+    setupQuickAdd();
     byId('saveAll').addEventListener('click', saveAll);
     byId('loadSaved').addEventListener('click', () => loadSaved(true));
     byId('exportJson').addEventListener('click', exportJson);
@@ -444,6 +445,74 @@
     renderChartOnly();
     showStatus('Measurement added');
     byId(firstNeededField()).focus();
+  }
+
+  /* ---------- Quick-add grid (under the chart) ---------- */
+
+  const QA_LABELS = { weight: 'Weight', height: 'Height', head: 'Head circ' };
+  const QA_FIELD = { weight: 'weightKg', height: 'lengthCm', head: 'headCm' };
+
+  function setupQuickAdd() {
+    byId('qaDate').value = todayIso();
+    const metric = byId('qaMetric');
+    const value = byId('qaValue');
+    metric.addEventListener('keydown', onQuickMetricKeydown);
+    metric.addEventListener('click', cycleQuickMetric);
+    [byId('qaDate'), value].forEach((el) => el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); commitQuickAdd(); }
+    }));
+  }
+
+  function onQuickMetricKeydown(event) {
+    const map = { h: 'height', w: 'weight', c: 'head' };
+    const key = event.key.toLowerCase();
+    if (map[key]) { event.preventDefault(); setQuickMetric(map[key]); byId('qaValue').focus(); return; }
+    if (event.key === 'Enter') { event.preventDefault(); commitQuickAdd(); return; }
+    if (event.key === 'Backspace' || event.key === 'Delete') { event.preventDefault(); clearQuickMetric(); }
+  }
+
+  function setQuickMetric(metric) {
+    const el = byId('qaMetric');
+    el.dataset.metric = metric;
+    el.value = QA_LABELS[metric];
+    el.classList.add('is-set');
+  }
+
+  function clearQuickMetric() {
+    const el = byId('qaMetric');
+    delete el.dataset.metric;
+    el.value = '';
+    el.classList.remove('is-set');
+  }
+
+  function cycleQuickMetric() {
+    const order = ['weight', 'height', 'head'];
+    const next = order[(order.indexOf(byId('qaMetric').dataset.metric) + 1) % order.length];
+    setQuickMetric(next);
+  }
+
+  function commitQuickAdd() {
+    const metric = byId('qaMetric').dataset.metric;
+    const date = byId('qaDate').value;
+    const raw = byId('qaValue').value.trim();
+    const value = Number(raw);
+
+    if (!metric) { byId('qaMetric').focus(); showStatus('Pick a metric — type h, w, or c'); return; }
+    if (!raw || !Number.isFinite(value) || value <= 0) { byId('qaValue').focus(); showStatus('Enter a value'); return; }
+
+    const age = GrowthData.calculateAgeMonths(byId('dob').value, date);
+    const obs = { id: uid(), measureDate: date, ageMonths: Number.isFinite(age) ? age : null, weightKg: null, lengthCm: null, headCm: null, note: '' };
+    obs[QA_FIELD[metric]] = value;
+    state.observations.push(obs);
+
+    renderChartOnly();
+    byId('qaValue').value = '';
+    clearQuickMetric();
+    byId('qaMetric').focus();
+    showStatus(`Added ${QA_LABELS[metric].toLowerCase()} ${GrowthData.formatNumber(value, 2)}`);
+    if (!Number.isFinite(age) && state.selectedCurve && state.selectedCurve.xUnit !== 'weeks') {
+      showMissingData('Tip: set a date of birth in the Patient panel so quick-added points land on the chart.');
+    }
   }
 
   function firstNeededField() {

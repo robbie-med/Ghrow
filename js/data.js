@@ -361,6 +361,7 @@
   }
 
   function numberOrNull(value) {
+    if (value === null || value === undefined || value === '') return null; // Number(null) === 0, guard it
     const numeric = Number(value);
     return Number.isFinite(numeric) ? numeric : null;
   }

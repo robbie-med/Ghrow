@@ -141,6 +141,25 @@
         <canvas id="growthChart" aria-label="Growth chart" role="img"></canvas>
       </div>
 
+      <div class="quick-add">
+        <div class="quick-add-head">
+          <h3>Quick add</h3>
+          <span class="hint">Type <kbd>h</kbd> / <kbd>w</kbd> / <kbd>c</kbd> for height · weight · head circ — <kbd>Tab</kbd> moves across, <kbd>Enter</kbd> adds the row.</span>
+        </div>
+        <table class="quick-add-table" aria-label="Quick measurement entry">
+          <thead>
+            <tr><th>Date</th><th>Metric</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input id="qaDate" type="date" aria-label="Date" /></td>
+              <td><input id="qaMetric" type="text" inputmode="none" placeholder="h / w / c" aria-label="Metric (type h, w, or c)" autocomplete="off" readonly /></td>
+              <td><input id="qaValue" type="number" inputmode="decimal" step="0.001" min="0" placeholder="value" aria-label="Value" /></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <div class="table-wrap">
         <table id="measurementsTable">
           <thead>

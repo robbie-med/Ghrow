@@ -386,6 +386,52 @@ button.danger:hover { background: rgba(239, 125, 125, 0.12); }
 }
 .chart-wrap canvas { width: 100% !important; height: 100% !important; }
 
+/* ---------- Quick add ---------- */
+.quick-add {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+}
+.quick-add-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.quick-add-head h3 { margin: 0; font-size: 0.95rem; }
+.quick-add-head .hint { margin: 0; }
+
+.quick-add-table { width: 100%; border-collapse: collapse; }
+.quick-add-table th {
+  position: static;
+  background: transparent;
+  padding: 0 8px 6px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.quick-add-table th:first-child { width: 36%; }
+.quick-add-table th:nth-child(2) { width: 30%; }
+.quick-add-table td { padding: 0 6px; border: 0; }
+.quick-add-table input { padding: 9px 10px; }
+#qaMetric { cursor: pointer; text-transform: capitalize; }
+#qaMetric.is-set { border-color: var(--accent); color: var(--ink); font-weight: 600; }
+
+kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78em;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0.05em 0.4em;
+  color: var(--ink);
+}
+
 /* ---------- Tables ---------- */
 .table-wrap {
   overflow: auto;

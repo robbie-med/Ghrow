@@ -52,6 +52,7 @@
     byId('parsePaste').addEventListener('click', addPastedData);
     byId('clearPaste').addEventListener('click', () => { byId('pasteBox').value = ''; byId('pasteResult').textContent = ''; });
     byId('resetZoom').addEventListener('click', resetZoom);
+    byId('printChart').addEventListener('click', printChart);
     byId('growthChart').addEventListener('dblclick', resetZoom);
     document.addEventListener('themechange', () => { if (state.selectedCurve) renderChartOnly(); });
     byId('saveAll').addEventListener('click', saveAll);
@@ -176,13 +177,8 @@
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
 
-  function drawChart() {
-    const ctx = byId('growthChart').getContext('2d');
-    const curve = state.selectedCurve;
-    if (state.chart) state.chart.destroy();
-    if (!curve) return;
-
-    const C = {
+  function chartColors() {
+    return {
       grid: cssVar('--chart-grid'),
       tick: cssVar('--chart-tick'),
       bandLine: cssVar('--chart-band-line'),
@@ -193,22 +189,27 @@
       point: cssVar('--chart-point-border'),
       ink: cssVar('--ink')
     };
+  }
 
+  // Fixed ink-on-paper palette for printing, independent of the screen theme.
+  const PRINT_COLORS = {
+    grid: 'rgba(0,0,0,0.12)', tick: '#333333',
+    bandLine: 'rgba(31,157,107,0.45)', bandFill: 'rgba(31,157,107,0.07)',
+    median: 'rgba(20,120,80,1)', label: 'rgba(20,110,75,0.95)',
+    patient: '#c0492a', point: '#ffffff', ink: '#111111'
+  };
+
+  function buildChartConfig(C, o) {
+    const curve = state.selectedCurve;
     const datasets = [];
-    const percentileColumns = GrowthData.percentileColumns(state.rows);
-
-    percentileColumns.forEach((column, index) => {
+    GrowthData.percentileColumns(state.rows).forEach((column, index) => {
       const pct = Number(GrowthData.normalizePercentileColumn(column).slice(1));
       const isMedian = pct === 50;
-      const points = state.rows
-        .filter((row) => Number.isFinite(Number(row[column])))
-        .map((row) => ({ x: row.chartX, y: Number(row[column]) }));
-
       datasets.push({
         label: GrowthData.percentileLabel(column),
         pLabel: GrowthData.ordinal(pct),
         labelColor: C.label,
-        data: points,
+        data: state.rows.filter((row) => Number.isFinite(Number(row[column]))).map((row) => ({ x: row.chartX, y: Number(row[column]) })),
         parsing: false,
         borderColor: isMedian ? C.median : C.bandLine,
         backgroundColor: C.bandFill,
@@ -220,7 +221,6 @@
         order: 2
       });
     });
-
     datasets.push({
       label: 'Patient',
       data: patientPlotPoints(),
@@ -239,53 +239,112 @@
     });
 
     const options = {
-      responsive: true,
+      responsive: o.responsive !== false,
       maintainAspectRatio: false,
-      animation: { duration: 250 },
+      animation: o.animation === false ? false : { duration: 250 },
       layout: { padding: { right: 34, top: 6 } },
       interaction: { mode: 'nearest', intersect: false },
       plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { color: C.ink, usePointStyle: true, filter: (item) => item.text === 'Patient' }
-        },
+        legend: { position: 'bottom', labels: { color: C.ink, usePointStyle: true, filter: (item) => item.text === 'Patient' } },
         tooltip: {
           callbacks: {
             title: (items) => (items && items.length ? `${curve.xLabel}: ${GrowthData.formatNumber(items[0].parsed.x, 1)}` : ''),
             label: (item) => `${item.dataset.label}: ${GrowthData.formatNumber(item.parsed.y, 2)}`
           }
-        },
-        zoom: {
-          zoom: {
-            wheel: { enabled: true },
-            pinch: { enabled: true },
-            drag: { enabled: true, modifierKey: 'shift', backgroundColor: 'rgba(90,160,224,0.15)', borderColor: 'rgba(90,160,224,0.6)', borderWidth: 1 },
-            mode: 'xy',
-            onZoomComplete: markZoomed
-          },
-          pan: { enabled: true, mode: 'xy', onPanComplete: markZoomed }
         }
       },
       scales: {
-        x: {
-          type: 'linear',
-          title: { display: true, text: curve.xLabel || 'X', color: C.tick },
-          ticks: { color: C.tick },
-          grid: { color: C.grid }
-        },
-        y: {
-          title: { display: true, text: curve.yLabel || 'Y', color: C.tick },
-          ticks: { color: C.tick },
-          grid: { color: C.grid }
-        }
+        x: { type: 'linear', title: { display: true, text: curve.xLabel || 'X', color: C.tick }, ticks: { color: C.tick }, grid: { color: C.grid } },
+        y: { title: { display: true, text: curve.yLabel || 'Y', color: C.tick }, ticks: { color: C.tick }, grid: { color: C.grid } }
       }
     };
+    if (o.zoom !== false) {
+      options.plugins.zoom = {
+        zoom: {
+          wheel: { enabled: true },
+          pinch: { enabled: true },
+          drag: { enabled: true, modifierKey: 'shift', backgroundColor: 'rgba(90,160,224,0.15)', borderColor: 'rgba(90,160,224,0.6)', borderWidth: 1 },
+          mode: 'xy',
+          onZoomComplete: markZoomed
+        },
+        pan: { enabled: true, mode: 'xy', onPanComplete: markZoomed }
+      };
+    }
     if (Number.isFinite(curve.xMin)) options.scales.x.min = curve.xMin;
     if (Number.isFinite(curve.xMax)) options.scales.x.max = curve.xMax;
+    return { type: 'line', data: { datasets }, options, plugins: [pctLabelPlugin] };
+  }
 
-    state.chart = new Chart(ctx, { type: 'line', data: { datasets }, options, plugins: [pctLabelPlugin] });
+  function drawChart() {
+    const ctx = byId('growthChart').getContext('2d');
+    if (state.chart) state.chart.destroy();
+    if (!state.selectedCurve) return;
+    state.chart = new Chart(ctx, buildChartConfig(chartColors(), { zoom: true, animation: 250, responsive: true }));
     state.zoomed = false;
     updateZoomButton();
+  }
+
+  // Render the chart to a high-res PNG using the print palette (off-screen).
+  function chartImage() {
+    const off = document.createElement('canvas');
+    off.width = 1180;
+    off.height = 760;
+    const cfg = buildChartConfig(PRINT_COLORS, { zoom: false, animation: false, responsive: false });
+    cfg.options.devicePixelRatio = 2;
+    const tmp = new Chart(off.getContext('2d'), cfg);
+    const url = tmp.toBase64Image('image/png', 1);
+    tmp.destroy();
+    return url;
+  }
+
+  function printChart() {
+    if (!state.chart || !state.selectedCurve) { showStatus('Add a measurement first'); return; }
+    const curve = state.selectedCurve;
+    const title = `${GrowthData.familyLabel(curve.family)} — ${curve.sourceLabel}${curve.range ? ` (${curve.range})` : ''}`;
+    const patient = byId('patientLabel').value.trim();
+    const dob = byId('dob').value;
+    const ga = byId('gestAge').value.trim();
+    const img = chartImage();
+
+    const meta = [];
+    if (patient) meta.push(`<b>${escapeHtml(patient)}</b>`);
+    meta.push(escapeHtml(currentSex().charAt(0).toUpperCase() + currentSex().slice(1)));
+    if (dob) meta.push(`DOB ${escapeHtml(dob)}`);
+    if (ga) meta.push(`GA ${escapeHtml(ga)}`);
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Growth chart${patient ? ' — ' + escapeHtml(patient) : ''}</title>
+<style>
+  @page { margin: 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Inter", Arial, Helvetica, sans-serif; color: #111; margin: 0; }
+  .hd { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 16px; }
+  h1 { font-size: 19px; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: #555; font-size: 12px; margin-top: 4px; }
+  .meta { font-size: 12px; color: #333; text-align: right; line-height: 1.5; }
+  img { width: 100%; height: auto; display: block; }
+  .ft { margin-top: 14px; font-size: 10px; color: #777; border-top: 1px solid #ccc; padding-top: 6px; }
+</style></head><body>
+  <div class="hd">
+    <div><h1>Growth Chart</h1><div class="sub">${escapeHtml(title)}</div></div>
+    <div class="meta">${meta.join(' &middot; ')}<br>Printed ${escapeHtml(todayIso())}</div>
+  </div>
+  <img src="${img}" alt="Growth chart">
+  <div class="ft">For educational and clinical-review plotting. Verify source data and clinical interpretation before use in patient care.</div>
+</body></html>`;
+
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(frame);
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    const cleanup = () => setTimeout(() => frame.remove(), 800);
+    frame.contentWindow.onafterprint = cleanup;
+    const imgEl = doc.querySelector('img');
+    const go = () => { frame.contentWindow.focus(); frame.contentWindow.print(); };
+    if (imgEl.complete) go(); else imgEl.onload = go;
   }
 
   function markZoomed() { state.zoomed = true; updateZoomButton(); }

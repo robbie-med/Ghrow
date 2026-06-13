@@ -9,7 +9,8 @@
     selectedCurve: null,
     rows: [],
     observations: [],
-    chart: null
+    chart: null,
+    zoomed: false
   };
 
   let formUnits = 'metric'; // 'metric' | 'imperial' — affects the Add-measurement form only
@@ -50,6 +51,9 @@
     setupQuickAdd();
     byId('parsePaste').addEventListener('click', addPastedData);
     byId('clearPaste').addEventListener('click', () => { byId('pasteBox').value = ''; byId('pasteResult').textContent = ''; });
+    byId('resetZoom').addEventListener('click', resetZoom);
+    byId('growthChart').addEventListener('dblclick', resetZoom);
+    document.addEventListener('themechange', () => { if (state.selectedCurve) renderChartOnly(); });
     byId('saveAll').addEventListener('click', saveAll);
     byId('loadSaved').addEventListener('click', () => loadSaved(true));
     byId('exportJson').addEventListener('click', exportJson);
@@ -168,11 +172,27 @@
     });
   }
 
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
   function drawChart() {
     const ctx = byId('growthChart').getContext('2d');
     const curve = state.selectedCurve;
     if (state.chart) state.chart.destroy();
     if (!curve) return;
+
+    const C = {
+      grid: cssVar('--chart-grid'),
+      tick: cssVar('--chart-tick'),
+      bandLine: cssVar('--chart-band-line'),
+      bandFill: cssVar('--chart-band-fill'),
+      median: cssVar('--chart-median-line'),
+      label: cssVar('--chart-label'),
+      patient: cssVar('--chart-patient'),
+      point: cssVar('--chart-point-border'),
+      ink: cssVar('--ink')
+    };
 
     const datasets = [];
     const percentileColumns = GrowthData.percentileColumns(state.rows);
@@ -187,11 +207,11 @@
       datasets.push({
         label: GrowthData.percentileLabel(column),
         pLabel: GrowthData.ordinal(pct),
-        labelColor: 'rgba(120, 205, 175, 0.85)',
+        labelColor: C.label,
         data: points,
         parsing: false,
-        borderColor: isMedian ? 'rgba(87, 199, 154, 0.95)' : 'rgba(87, 199, 154, 0.32)',
-        backgroundColor: 'rgba(87, 199, 154, 0.06)',
+        borderColor: isMedian ? C.median : C.bandLine,
+        backgroundColor: C.bandFill,
         borderWidth: isMedian ? 2.2 : 1,
         borderDash: isMedian ? [] : [4, 4],
         fill: index === 0 ? false : '-1',
@@ -205,21 +225,19 @@
       label: 'Patient',
       data: patientPlotPoints(),
       parsing: false,
-      borderColor: '#f08a5d',
-      backgroundColor: '#f08a5d',
+      borderColor: C.patient,
+      backgroundColor: C.patient,
       borderWidth: 2.4,
       pointRadius: 4.5,
       pointHoverRadius: 6.5,
-      pointBackgroundColor: '#f08a5d',
-      pointBorderColor: '#11161d',
+      pointBackgroundColor: C.patient,
+      pointBorderColor: C.point,
       pointBorderWidth: 1.5,
       spanGaps: true,
       tension: 0.1,
       order: 0
     });
 
-    const gridColor = 'rgba(255, 255, 255, 0.06)';
-    const tickColor = '#8696a8';
     const options = {
       responsive: true,
       maintainAspectRatio: false,
@@ -229,30 +247,36 @@
       plugins: {
         legend: {
           position: 'bottom',
-          labels: {
-            color: '#dde5ef',
-            usePointStyle: true,
-            filter: (item) => item.text === 'Patient'
-          }
+          labels: { color: C.ink, usePointStyle: true, filter: (item) => item.text === 'Patient' }
         },
         tooltip: {
           callbacks: {
             title: (items) => (items && items.length ? `${curve.xLabel}: ${GrowthData.formatNumber(items[0].parsed.x, 1)}` : ''),
             label: (item) => `${item.dataset.label}: ${GrowthData.formatNumber(item.parsed.y, 2)}`
           }
+        },
+        zoom: {
+          zoom: {
+            wheel: { enabled: true },
+            pinch: { enabled: true },
+            drag: { enabled: true, modifierKey: 'shift', backgroundColor: 'rgba(90,160,224,0.15)', borderColor: 'rgba(90,160,224,0.6)', borderWidth: 1 },
+            mode: 'xy',
+            onZoomComplete: markZoomed
+          },
+          pan: { enabled: true, mode: 'xy', onPanComplete: markZoomed }
         }
       },
       scales: {
         x: {
           type: 'linear',
-          title: { display: true, text: curve.xLabel || 'X', color: tickColor },
-          ticks: { color: tickColor },
-          grid: { color: gridColor }
+          title: { display: true, text: curve.xLabel || 'X', color: C.tick },
+          ticks: { color: C.tick },
+          grid: { color: C.grid }
         },
         y: {
-          title: { display: true, text: curve.yLabel || 'Y', color: tickColor },
-          ticks: { color: tickColor },
-          grid: { color: gridColor }
+          title: { display: true, text: curve.yLabel || 'Y', color: C.tick },
+          ticks: { color: C.tick },
+          grid: { color: C.grid }
         }
       }
     };
@@ -260,6 +284,19 @@
     if (Number.isFinite(curve.xMax)) options.scales.x.max = curve.xMax;
 
     state.chart = new Chart(ctx, { type: 'line', data: { datasets }, options, plugins: [pctLabelPlugin] });
+    state.zoomed = false;
+    updateZoomButton();
+  }
+
+  function markZoomed() { state.zoomed = true; updateZoomButton(); }
+  function updateZoomButton() {
+    const btn = byId('resetZoom');
+    if (btn) btn.hidden = !state.zoomed;
+  }
+  function resetZoom() {
+    if (state.chart && typeof state.chart.resetZoom === 'function') state.chart.resetZoom();
+    state.zoomed = false;
+    updateZoomButton();
   }
 
   const pctLabelPlugin = {

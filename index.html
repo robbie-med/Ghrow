@@ -4,9 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Growth Curve Plotter</title>
+  <script>
+    (function () {
+      try {
+        var s = localStorage.getItem('growthCurvePlotter:theme');
+        var t = (s === 'light' || s === 'dark') ? s
+          : ((window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+        document.documentElement.dataset.theme = t;
+      } catch (e) { document.documentElement.dataset.theme = 'light'; }
+    }());
+  </script>
   <link rel="stylesheet" href="css/styles.css" />
   <script src="js/lib/chart.umd.min.js" defer></script>
+  <script src="js/lib/chartjs-plugin-zoom.min.js" defer></script>
   <script src="js/data.js" defer></script>
+  <script src="js/theme.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -17,7 +29,8 @@
     </div>
     <nav class="top-nav" aria-label="Primary navigation">
       <a href="index.html" aria-current="page">Plot</a>
-      <a href="about.html">Raw data</a>
+      <a href="about.html">About</a>
+      <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false">☾ Dark</button>
     </nav>
   </header>
 
@@ -90,15 +103,15 @@
             <p class="age-readout span-2" id="ageReadout"></p>
 
             <label data-input="weight">
-              Weight (<span class="u-weight">kg</span>)
+              <span>Weight (<span class="u-weight">kg</span>)</span>
               <input id="weightKg" type="number" inputmode="decimal" step="0.001" min="0" placeholder="e.g. 6.4" />
             </label>
             <label data-input="length">
-              Length / height (<span class="u-length">cm</span>)
+              <span>Length / height (<span class="u-length">cm</span>)</span>
               <input id="lengthCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 62.4" />
             </label>
             <label data-input="head">
-              Head circ. (<span class="u-length">cm</span>)
+              <span>Head circ. (<span class="u-length">cm</span>)</span>
               <input id="headCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 41.2" />
             </label>
             <label data-input="note">
@@ -136,7 +149,10 @@
           <h2 id="plot-title">Growth chart</h2>
           <p id="chartSubtitle" class="muted">Select a curve and add a measurement.</p>
         </div>
-        <div id="status" class="status">Loading…</div>
+        <div class="plot-actions">
+          <button type="button" id="resetZoom" class="ghost btn-sm" hidden>Reset zoom</button>
+          <div id="status" class="status">Loading…</div>
+        </div>
       </div>
 
       <div id="readout" class="readout" hidden></div>
@@ -146,6 +162,7 @@
       <div class="chart-wrap">
         <canvas id="growthChart" aria-label="Growth chart" role="img"></canvas>
       </div>
+      <p class="chart-hint muted">Scroll to zoom · drag to pan · double-click to reset.</p>
 
       <div class="quick-add">
         <div class="quick-add-head">

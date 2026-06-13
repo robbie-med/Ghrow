@@ -1,8 +1,41 @@
+/* ---------- Light theme (default) ---------- */
 :root {
-  /* Comfortable, low-glare dark palette */
-  --bg: #11161d;
-  --bg-grad-1: #0f141b;
-  --bg-grad-2: #141b25;
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --surface-2: #f3f5f9;
+  --input: #ffffff;
+  --line: #d6dce5;
+  --line-soft: rgba(15, 23, 42, 0.07);
+  --ink: #1f2733;
+  --ink-soft: #3c4757;
+  --muted: #6a7686;
+  --accent: #2f6fb0;
+  --accent-2: #3a82cb;
+  --accent-ink: #ffffff;
+  --good: #1f9d6b;
+  --patient: #d96a3a;
+  --danger: #c23b2e;
+  --warning: #9a6b06;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+
+  /* chart colours (read from JS so the chart follows the theme) */
+  --chart-grid: rgba(15, 23, 42, 0.08);
+  --chart-tick: #6a7686;
+  --chart-band-line: rgba(31, 157, 107, 0.30);
+  --chart-band-fill: rgba(31, 157, 107, 0.06);
+  --chart-median-line: rgba(31, 157, 107, 0.95);
+  --chart-label: rgba(24, 121, 84, 0.9);
+  --chart-patient: #d96a3a;
+  --chart-point-border: #ffffff;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  color-scheme: light;
+}
+
+/* ---------- Dark theme ---------- */
+:root[data-theme="dark"] {
+  --bg: #121821;
   --surface: #1a212c;
   --surface-2: #202935;
   --input: #161d27;
@@ -18,7 +51,17 @@
   --patient: #f08a5d;
   --danger: #ef7d7d;
   --warning: #e3b46a;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-tick: #8696a8;
+  --chart-band-line: rgba(87, 199, 154, 0.32);
+  --chart-band-fill: rgba(87, 199, 154, 0.06);
+  --chart-median-line: rgba(87, 199, 154, 0.95);
+  --chart-label: rgba(120, 205, 175, 0.85);
+  --chart-patient: #f08a5d;
+  --chart-point-border: #11161d;
+
   color-scheme: dark;
 }
 
@@ -35,8 +78,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(1200px 600px at 80% -10%, #1b2533 0%, transparent 60%),
-              linear-gradient(180deg, var(--bg-grad-1), var(--bg-grad-2));
+  background: var(--bg);
 }
 
 h1, h2, h3, p { margin-top: 0; }
@@ -82,29 +124,42 @@ h1, h2, h3, p { margin-top: 0; }
 
 .top-nav {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
 .top-nav a {
-  color: var(--ink-soft);
+  color: var(--muted);
   text-decoration: none;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  padding: 8px 14px;
-  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
   font-size: 0.9rem;
   font-weight: 600;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  transition: color 0.15s, background 0.15s;
 }
 
-.top-nav a:hover { border-color: var(--accent); color: var(--ink); }
+.top-nav a:hover { color: var(--ink); background: var(--surface-2); }
 
 .top-nav a[aria-current="page"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
+  color: var(--ink);
+  background: var(--surface-2);
 }
+
+.theme-toggle {
+  margin-left: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 11px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--accent); color: var(--ink); }
 
 .site-footer {
   color: var(--muted);
@@ -132,7 +187,7 @@ h1, h2, h3, p { margin-top: 0; }
 .panel {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
   padding: 18px;
 }
@@ -149,7 +204,7 @@ h1, h2, h3, p { margin-top: 0; }
 /* ---------- Cards within controls ---------- */
 .card {
   padding: 16px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   border: 1px solid transparent;
 }
 
@@ -225,12 +280,12 @@ input, select, textarea {
   color: var(--ink);
   background: var(--input);
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   padding: 9px 10px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-input::placeholder { color: #5f6e7e; }
+input::placeholder { color: var(--muted); opacity: 0.75; }
 
 input:focus, select:focus, textarea:focus,
 button:focus-visible, .file-button:focus-within {
@@ -250,14 +305,14 @@ select {
 
 /* Highlight the input the active curve actually needs */
 label[data-active] { color: var(--ink); }
-label[data-active] input { border-color: rgba(90, 160, 224, 0.55); background: #18222f; }
+label[data-active] input { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(90, 160, 224, 0.16); }
 
 .segmented {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 4px;
   margin: 0;
 }
@@ -323,7 +378,7 @@ label[data-active] input { border-color: rgba(90, 160, 224, 0.55); background: #
 button, .file-button {
   font: inherit;
   font-weight: 600;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   padding: 9px 15px;
   cursor: pointer;
   border: 1px solid var(--line);
@@ -373,11 +428,17 @@ button.danger:hover { background: rgba(239, 125, 125, 0.12); }
 .plot-header h2 { margin: 0 0 4px; font-size: 1.15rem; }
 .plot-header .muted { margin: 0; font-size: 0.9rem; }
 
+.plot-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+
+.btn-sm { padding: 6px 11px; font-size: 0.8rem; border-radius: var(--radius-sm); }
+
+.chart-hint { margin: -6px 0 0; font-size: 0.76rem; }
+
 .status {
   flex: none;
   color: var(--muted);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   padding: 6px 12px;
   font-size: 0.76rem;
   white-space: nowrap;
@@ -392,7 +453,7 @@ button.danger:hover { background: rgba(239, 125, 125, 0.12); }
   flex: 1 1 130px;
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 12px 14px;
 }
 .readout .stat .k {
@@ -411,16 +472,16 @@ button.danger:hover { background: rgba(239, 125, 125, 0.12); }
   height: 60vh;
   min-height: 460px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 12px;
-  background: linear-gradient(180deg, #131a24, #161e29);
+  background: var(--surface);
 }
 .chart-wrap canvas { width: 100% !important; height: 100% !important; }
 
 /* ---------- Quick add ---------- */
 .quick-add {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 12px 14px;
   background: var(--surface-2);
 }
@@ -454,7 +515,7 @@ button.danger:hover { background: rgba(239, 125, 125, 0.12); }
 
 .paste-add {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 12px 14px;
   background: var(--surface-2);
 }
@@ -484,7 +545,7 @@ kbd {
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
 
 table {
@@ -550,7 +611,7 @@ td.assumed::after {
 .notice {
   border: 1px solid rgba(90, 160, 224, 0.4);
   background: rgba(90, 160, 224, 0.1);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 11px 14px;
   color: var(--ink);
   font-size: 0.9rem;
@@ -559,7 +620,7 @@ td.assumed::after {
 .warning {
   background: rgba(227, 180, 106, 0.12);
   border: 1px solid rgba(227, 180, 106, 0.45);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 11px 14px;
   color: var(--ink);
 }
@@ -579,7 +640,7 @@ td.assumed::after {
 .ref-card {
   background: var(--surface-2);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 16px;
 }
 .ref-head {
@@ -610,8 +671,8 @@ td.assumed::after {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 4px 9px;
-  border-radius: 999px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 .tag-pending {

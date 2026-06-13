@@ -45,6 +45,8 @@
     byId('measurementForm').addEventListener('submit', addMeasurement);
     byId('clearForm').addEventListener('click', () => clearMeasurementForm(false));
     setupQuickAdd();
+    byId('parsePaste').addEventListener('click', addPastedData);
+    byId('clearPaste').addEventListener('click', () => { byId('pasteBox').value = ''; byId('pasteResult').textContent = ''; });
     byId('saveAll').addEventListener('click', saveAll);
     byId('loadSaved').addEventListener('click', () => loadSaved(true));
     byId('exportJson').addEventListener('click', exportJson);
@@ -514,6 +516,130 @@
       showMissingData('Tip: set a date of birth in the Patient panel so quick-added points land on the chart.');
     }
   }
+
+  /* ---------- Paste parser (EHR / chart dumps) ---------- */
+
+  function metricFromLabel(label) {
+    if (label.includes('head')) return 'head';
+    if (label.includes('body mass') || label.startsWith('bmi')) return 'bmi';
+    if (label.includes('weight')) return 'weight';
+    if (label.includes('height') || label.includes('length') || label.includes('stature')) return 'height';
+    return null;
+  }
+
+  // Parse a value cell into metric units (kg for weight, cm for length/head).
+  function parseValueCell(metric, raw) {
+    const s = String(raw).split('(')[0].trim(); // ignore parenthetical alternates
+    if (metric === 'weight') {
+      const lbOz = s.match(/(\d+(?:\.\d+)?)\s*lb[s]?\s*(\d+(?:\.\d+)?)\s*oz/i);
+      if (lbOz) return round(Number(lbOz[1]) * 0.45359237 + Number(lbOz[2]) * 0.0283495231, 3);
+      const m = s.match(/(-?\d+(?:\.\d+)?)\s*([a-z]+)?/i);
+      if (!m) return null;
+      const n = Number(m[1]);
+      const u = (m[2] || '').toLowerCase();
+      if (!u || u.startsWith('kg')) return u ? round(n, 3) : null;
+      if (u === 'g') return round(n / 1000, 3);
+      if (u === 'oz') return round(n * 0.0283495231, 3);
+      if (u.startsWith('lb')) return round(n * 0.45359237, 3);
+      return null;
+    }
+    // length / height / head circumference -> cm
+    const ft = s.match(/(\d+)\s*'\s*(\d+(?:\.\d+)?)\s*"?/);
+    if (ft && s.includes("'")) return round((Number(ft[1]) * 12 + Number(ft[2])) * 2.54, 1);
+    const m = s.match(/(-?\d+(?:\.\d+)?)\s*([a-z"]+)?/i);
+    if (!m) return null;
+    const n = Number(m[1]);
+    const u = (m[2] || '').toLowerCase();
+    if (!u) return null;
+    if (u.startsWith('cm')) return round(n, 1);
+    if (u.startsWith('mm')) return round(n / 10, 1);
+    if (u.startsWith('in') || u === '"') return round(n * 2.54, 1);
+    if (u === 'm') return round(n * 100, 1);
+    return null;
+  }
+
+  function findDateIso(text) {
+    let m = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); // MM/DD/YYYY
+    if (m) return `${m[3]}-${pad2(m[1])}-${pad2(m[2])}`;
+    m = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[0];
+    return null;
+  }
+
+  function parsePastedData(text) {
+    const byDate = new Map();
+    let recognized = 0;
+    let skipped = 0;
+    let sawData = false;
+
+    text.split(/\r?\n/).forEach((rawLine) => {
+      const line = rawLine.trim();
+      if (!line || /^growth chart/i.test(line)) return;
+      const fields = line.includes('\t') ? line.split('\t') : line.split(/\s{2,}/);
+      const label = (fields[0] || '').toLowerCase().trim();
+      if (!label || label.includes('percentile')) return;
+      const metric = metricFromLabel(label);
+      if (!metric) return;
+      sawData = true;
+      if (metric === 'bmi') return; // app derives BMI from weight + height
+      const value = parseValueCell(metric, fields[1] || '');
+      const dateIso = findDateIso(fields.slice(1).join(' ') || line);
+      if (value === null || !dateIso) { skipped += 1; return; }
+      if (!byDate.has(dateIso)) byDate.set(dateIso, {});
+      byDate.get(dateIso)[metric] = value;
+      recognized += 1;
+    });
+
+    return { byDate, recognized, skipped, sawData };
+  }
+
+  function addPastedData() {
+    const { byDate, recognized, skipped, sawData } = parsePastedData(byId('pasteBox').value);
+    maybeDetectSex(byId('pasteBox').value);
+
+    const dob = byId('dob').value;
+    let added = 0;
+    let undated = 0;
+    byDate.forEach((metrics, dateIso) => {
+      const age = GrowthData.calculateAgeMonths(dob, dateIso);
+      if (!Number.isFinite(age)) undated += 1;
+      state.observations.push({
+        id: uid(),
+        measureDate: dateIso,
+        ageMonths: Number.isFinite(age) ? age : null,
+        weightKg: Number.isFinite(metrics.weight) ? metrics.weight : null,
+        lengthCm: Number.isFinite(metrics.height) ? metrics.height : null,
+        headCm: Number.isFinite(metrics.head) ? metrics.head : null,
+        note: 'Pasted'
+      });
+      added += 1;
+    });
+
+    if (added) { renderChartOnly(); byId('pasteBox').value = ''; }
+    const out = byId('pasteResult');
+    if (!added) {
+      out.textContent = sawData
+        ? 'Found measurements but no usable date — add a date column, or check the format.'
+        : 'No recognizable measurements found. Expecting rows like "Weight  3.2 kg  06/14/2025".';
+    } else {
+      out.textContent = `Added ${added} visit${added > 1 ? 's' : ''} (${recognized} value${recognized > 1 ? 's' : ''})` +
+        `${skipped ? `, skipped ${skipped} line${skipped > 1 ? 's' : ''}` : ''}` +
+        `${undated && !dob ? ' — set a date of birth so they plot.' : '.'}`;
+      showStatus(`Added ${added} from paste`);
+    }
+  }
+
+  function maybeDetectSex(text) {
+    const t = text.toLowerCase();
+    const female = /\b(girls?|female)\b/.test(t);
+    const male = /\b(boys?|male)\b/.test(t);
+    if (female === male) return; // ambiguous or neither
+    const radio = document.querySelector(`input[name="sex"][value="${female ? 'female' : 'male'}"]`);
+    if (radio && !radio.checked) { radio.checked = true; render(); }
+  }
+
+  function round(value, digits) { const f = Math.pow(10, digits); return Math.round(value * f) / f; }
+  function pad2(value) { return String(value).padStart(2, '0'); }
 
   function firstNeededField() {
     const need = GrowthData.curveInput(state.selectedCurve);

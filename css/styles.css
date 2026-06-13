@@ -421,6 +421,23 @@ button.danger:hover { background: rgba(239, 125, 125, 0.12); }
 #qaMetric { cursor: pointer; text-transform: capitalize; }
 #qaMetric.is-set { border-color: var(--accent); color: var(--ink); font-weight: 600; }
 
+.paste-add {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+}
+.paste-add .quick-add-head { margin-bottom: 8px; }
+#pasteBox {
+  min-height: 0;
+  height: auto;
+  white-space: pre;
+  overflow: auto;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+#pasteResult:empty { display: none; }
+
 kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.78em;

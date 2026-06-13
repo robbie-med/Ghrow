@@ -160,6 +160,22 @@
         </table>
       </div>
 
+      <div class="paste-add">
+        <div class="quick-add-head">
+          <h3>Paste data</h3>
+          <span class="hint">Paste rows copied from a chart or EHR — metric, value, date in any order. Units auto-convert (kg/lb/oz, cm/in); percentile and header lines are ignored.</span>
+        </div>
+        <textarea id="pasteBox" rows="4" spellcheck="false" placeholder="e.g.
+Weight&#9;2.93 kg (6 lb 7.4 oz)&#9;06/14/2025 2:25 AM CDT
+Height&#9;49.5 cm (1' 7.5&quot;)&#9;06/12/2025
+Head Circumference&#9;34 cm&#9;06/12/2025"></textarea>
+        <div class="button-row">
+          <button type="button" id="parsePaste" class="primary">Parse &amp; add</button>
+          <button type="button" id="clearPaste" class="ghost">Clear</button>
+        </div>
+        <p id="pasteResult" class="hint"></p>
+      </div>
+
       <div class="table-wrap">
         <table id="measurementsTable">
           <thead>

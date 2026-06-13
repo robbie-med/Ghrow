@@ -5,6 +5,7 @@ Sources (see About page / README for full citations):
   - peditools (jhchou)         -> Fenton 2003 preterm, Zemel 2015 Down syndrome  [LMS]
   - groowooth (xiaot945)       -> China NHC / WS-T 423-2022                       [+/-SD values]
   - gigs (SASPAC, SAS port)    -> INTERGROWTH-21st Postnatal Growth standards     [centiles]
+  - KDCA (knhanes portal)      -> Korea KNGC2017 growth charts                    [LMS, .xlsx]
 
 Each output CSV uses a uniform schema the plotter understands:
   - LMS sources:        Sex,<X>,L,M,S,P3,P5,P10,P25,P50,P75,P90,P95,P97
@@ -180,6 +181,73 @@ def emit_ig_png(rows, acronym, relpath):
     write_csv(relpath, ["Sex", "X", "P3", "P5", "P10", "P50", "P90", "P95", "P97"], out)
 
 
+# ---------------------------------------------------------------------------
+# KDCA: Korea KNGC2017 (LMS .xlsx behind a session + token download flow)
+# ---------------------------------------------------------------------------
+KDCA_BASE = "https://knhanes.kdca.go.kr"
+KDCA_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+# 2017 "기본자료" data table (dataNo 7, fileSeq 2 = "성장도표 데이터 테이블.xls", actually xlsx)
+KOREA_SHEETS = {
+    "연령별 신장": ("korea/kngc2017-height-age.csv", 2),
+    "연령별 체중": ("korea/kngc2017-weight-age.csv", 2),
+    "연령별 체질량지수": ("korea/kngc2017-bmi-age.csv", 2),
+    "연령별 머리둘레": ("korea/kngc2017-head-age.csv", 2),
+    "신장별 체중(2세미만)": ("korea/kngc2017-weight-length-u2.csv", 1),
+    "신장별 체중(3세 이상)": ("korea/kngc2017-weight-height-3plus.csv", 1),
+}
+
+
+def fetch_korea_xlsx(dest):
+    import http.cookiejar
+    import json as _json
+    local = os.environ.get("GHROW_KOREA_XLSX")
+    if local and os.path.exists(local):
+        log(f"  using local KNGC2017 file {local}")
+        with open(local, "rb") as fh, open(dest, "wb") as out:
+            out.write(fh.read())
+        return
+    cj = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+    opener.addheaders = [("User-Agent", KDCA_UA), ("Referer", KDCA_BASE + "/knhanes/grtcht/dwnld/dtDtl.do")]
+    opener.open(KDCA_BASE + "/knhanes/grtcht/dwnld/dtLst.do", timeout=60).read()  # establish session
+    req = urllib.request.Request(
+        KDCA_BASE + "/knhanes/api/file/download.json",
+        data=_json.dumps({"type": "GC", "dtlSn": 7, "flSn": 2}).encode(),
+        headers={"Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest"},
+    )
+    down_url = _json.loads(opener.open(req, timeout=60).read())["data"]["downUrl"]
+    data = opener.open(urllib.request.Request(down_url), timeout=120).read()
+    with open(dest, "wb") as out:
+        out.write(data)
+
+
+def build_korea():
+    try:
+        import openpyxl
+    except ImportError:
+        log("  openpyxl not installed (pip install openpyxl); skipping Korea.")
+        return
+    xlsx = os.path.join(WORK, "kngc2017.xlsx")
+    if not os.path.exists(xlsx):
+        os.makedirs(WORK, exist_ok=True)
+        fetch_korea_xlsx(xlsx)
+    wb = openpyxl.load_workbook(xlsx, read_only=True, data_only=True)
+    for title, (relpath, xcol) in KOREA_SHEETS.items():
+        ws = wb[title]
+        lcol = xcol + 1  # L, then M, S
+        out = []
+        for r in ws.iter_rows(min_row=3, values_only=True):
+            if str(r[0]) not in ("1", "2"):
+                continue
+            try:
+                sex = int(r[0]); x = float(r[xcol]); L = float(r[lcol]); M = float(r[lcol + 1]); S = float(r[lcol + 2])
+            except (TypeError, ValueError):
+                continue
+            out.append([sex, fmt(x), fmt(L), fmt(M), fmt(S)] + lms_percentiles(L, M, S))
+        out.sort(key=lambda z: (z[0], float(z[1])))
+        write_csv(relpath, ["Sex", "X", "L", "M", "S"] + PCOLS, out)
+
+
 def main():
     roots = ensure_sources()
 
@@ -214,6 +282,12 @@ def main():
     emit_ig_png(png, "WFA", "intergrowth/ig-png-weight.csv")
     emit_ig_png(png, "LFA", "intergrowth/ig-png-length.csv")
     emit_ig_png(png, "HCFA", "intergrowth/ig-png-head.csv")
+
+    log("Korea KNGC2017 (KDCA)…")
+    try:
+        build_korea()
+    except Exception as exc:  # network/session flakiness shouldn't fail the whole build
+        log(f"  Korea build skipped: {exc}")
 
     log("done.")
 

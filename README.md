@@ -62,7 +62,7 @@ The reference CSVs are committed to the repo, so the app also works without runn
 - **INTERGROWTH-21st** — preterm postnatal growth, 27–64 weeks postmenstrual age (weight, length, head circumference)
 - **Down syndrome (Zemel 2015)** — birth–20 years (weight, length/height, head circumference, BMI)
 - **China NHC 2022 (WS/T 423-2022)** — birth–7 years (weight, height, head circumference, BMI, weight-for-height/length)
-- **Korea KNGC2017** — documented; integration pending a machine-readable export from the KDCA portal
+- **Korea KNGC2017** — birth–18 years (weight, height, BMI, head circumference, weight-for-length/height)
 
 Preterm charts plot by postmenstrual age, so a gestational age is required. Generate the special-population CSVs with `python3 scripts/build-special-curves.py`.
 
@@ -75,7 +75,7 @@ Reference tables are derived from these open publications and toolkits (see also
 - INTERGROWTH-21st Postnatal Growth (Villar J et al., *Lancet Glob Health* 2015) — centile tables via [SASPAC/gigs](https://github.com/SASPAC/gigs).
 - China NHC *WS/T 423-2022* — parameter tables via [xiaot945/groowooth](https://github.com/xiaot945/groowooth).
 - [childsds](https://cran.r-project.org/web/packages/childsds/refman/childsds.html) ([Leipzig source](https://git.sc.uni-leipzig.de/my221hepi/childsds)) — curated multi-reference LMS collection, consulted for provenance.
-- Korea KNGC2017 — official tables at the [KDCA growth-chart portal](https://knhanes.kdca.go.kr/knhanes/grtcht/main.do) (integration pending).
+- Korea KNGC2017 — official KDCA LMS data table from the [KDCA growth-chart downloads](https://knhanes.kdca.go.kr/knhanes/grtcht/dwnld/dtLst.do).
 
 ## Adding new curves
 

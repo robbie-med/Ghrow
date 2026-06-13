@@ -580,11 +580,33 @@
 
   /* ---------- Paste parser (EHR / chart dumps) ---------- */
 
-  function metricFromLabel(label) {
-    if (label.includes('head')) return 'head';
-    if (label.includes('body mass') || label.startsWith('bmi')) return 'bmi';
-    if (label.includes('weight')) return 'weight';
-    if (label.includes('height') || label.includes('length') || label.includes('stature')) return 'height';
+  function splitRow(line) {
+    return line.includes('\t') ? line.split('\t') : line.split(/\s{2,}/);
+  }
+
+  // Classify a column header or row label -> 'weight' | 'height' | 'head' | 'date' | null.
+  // Returns null for things we deliberately ignore (BMI, BSA, dosing weight, percentile…).
+  function classifyHeader(text) {
+    const h = String(text).toLowerCase();
+    if (/\bdate\b|date\/time|date\s*\/\s*time|\btime\b/.test(h) && !/weight|height|head|length/.test(h)) return 'date';
+    if (h.includes('dosing') || h.includes('percentile')) return null;
+    if (h.includes('bsa') || h.includes('body surface')) return null;
+    if (h.includes('bmi') || h.includes('body mass')) return null;
+    if (h.includes('head')) return 'head';
+    if (h.includes('weight')) return 'weight';
+    if (h.includes('height') || h.includes('length') || h.includes('stature')) return 'height';
+    return null;
+  }
+
+  // Detect a wide/tabular layout: a header row with a Date column + >=1 measurement column.
+  function detectWide(lines) {
+    for (let i = 0; i < Math.min(lines.length, 3); i += 1) {
+      const map = splitRow(lines[i].trim()).map((c) => classifyHeader(c.trim()));
+      const dateCol = map.indexOf('date');
+      if (dateCol !== -1 && map.some((m) => m === 'weight' || m === 'height' || m === 'head')) {
+        return { headerLine: i, dateCol, map };
+      }
+    }
     return null;
   }
 
@@ -622,36 +644,73 @@
   function findDateIso(text) {
     let m = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); // MM/DD/YYYY
     if (m) return `${m[3]}-${pad2(m[1])}-${pad2(m[2])}`;
-    m = text.match(/(\d{4})-(\d{2})-(\d{2})/);
+    m = text.match(/(\d{4})-(\d{2})-(\d{2})/); // ISO
     if (m) return m[0];
+    m = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})\b/); // MM/DD/YY
+    if (m) { const yy = Number(m[3]); return `${yy <= 69 ? 2000 + yy : 1900 + yy}-${pad2(m[1])}-${pad2(m[2])}`; }
     return null;
   }
 
   function parsePastedData(text) {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    const wide = detectWide(lines);
+    return wide ? parseWide(lines, wide) : parseLong(lines);
+  }
+
+  // Long layout: one measurement per line — "<metric> <value> <date>".
+  function parseLong(lines) {
     const byDate = new Map();
     let recognized = 0;
     let skipped = 0;
     let sawData = false;
 
-    text.split(/\r?\n/).forEach((rawLine) => {
+    lines.forEach((rawLine) => {
       const line = rawLine.trim();
       if (!line || /^growth chart/i.test(line)) return;
-      const fields = line.includes('\t') ? line.split('\t') : line.split(/\s{2,}/);
-      const label = (fields[0] || '').toLowerCase().trim();
-      if (!label || label.includes('percentile')) return;
-      const metric = metricFromLabel(label);
-      if (!metric) return;
+      const fields = splitRow(line);
+      const metric = classifyHeader(fields[0] || '');
+      if (metric === null || metric === 'date') return;
       sawData = true;
-      if (metric === 'bmi') return; // app derives BMI from weight + height
       const value = parseValueCell(metric, fields[1] || '');
       const dateIso = findDateIso(fields.slice(1).join(' ') || line);
       if (value === null || !dateIso) { skipped += 1; return; }
-      if (!byDate.has(dateIso)) byDate.set(dateIso, {});
-      byDate.get(dateIso)[metric] = value;
+      store(byDate, dateIso, metric, { value, assumed: false });
       recognized += 1;
     });
-
     return { byDate, recognized, skipped, sawData };
+  }
+
+  // Wide layout: a header row of metric columns, one visit per row.
+  function parseWide(lines, info) {
+    const byDate = new Map();
+    let recognized = 0;
+    let skipped = 0;
+
+    for (let i = info.headerLine + 1; i < lines.length; i += 1) {
+      const line = lines[i].trim();
+      if (!line || /^growth chart/i.test(line)) continue;
+      const cells = splitRow(line);
+      const dateIso = findDateIso(cells[info.dateCol] || line);
+      if (!dateIso) { skipped += 1; continue; }
+      let any = false;
+      info.map.forEach((metric, idx) => {
+        if (metric !== 'weight' && metric !== 'height' && metric !== 'head') return;
+        const cell = (cells[idx] || '').trim();
+        if (!cell || cell === '—' || cell === '-') return;
+        const parsed = parseQuickValue(metric, cell); // tolerant: units or assumed-metric
+        if (!parsed) return;
+        store(byDate, dateIso, metric, parsed);
+        recognized += 1;
+        any = true;
+      });
+      if (!any) skipped += 1;
+    }
+    return { byDate, recognized, skipped, sawData: true };
+  }
+
+  function store(byDate, dateIso, metric, parsed) {
+    if (!byDate.has(dateIso)) byDate.set(dateIso, {});
+    byDate.get(dateIso)[metric] = parsed; // { value, assumed }
   }
 
   function addPastedData() {
@@ -659,20 +718,30 @@
     maybeDetectSex(byId('pasteBox').value);
 
     const dob = byId('dob').value;
+    const FIELD = { weight: 'weightKg', height: 'lengthCm', head: 'headCm' };
     let added = 0;
     let undated = 0;
     byDate.forEach((metrics, dateIso) => {
       const age = GrowthData.calculateAgeMonths(dob, dateIso);
       if (!Number.isFinite(age)) undated += 1;
-      state.observations.push({
+      const obs = {
         id: uid(),
         measureDate: dateIso,
         ageMonths: Number.isFinite(age) ? age : null,
-        weightKg: Number.isFinite(metrics.weight) ? metrics.weight : null,
-        lengthCm: Number.isFinite(metrics.height) ? metrics.height : null,
-        headCm: Number.isFinite(metrics.head) ? metrics.head : null,
+        weightKg: null,
+        lengthCm: null,
+        headCm: null,
         note: 'Pasted'
+      };
+      const assumed = {};
+      Object.keys(metrics).forEach((metric) => {
+        const field = FIELD[metric];
+        if (!field) return;
+        obs[field] = metrics[metric].value;
+        if (metrics[metric].assumed) assumed[field] = true;
       });
+      if (Object.keys(assumed).length) obs.assumed = assumed;
+      state.observations.push(obs);
       added += 1;
     });
 

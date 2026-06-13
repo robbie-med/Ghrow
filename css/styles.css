@@ -490,6 +490,15 @@ td .row-x:hover { background: rgba(239, 125, 125, 0.15); color: var(--danger); }
 .ref-card p:last-child { margin-bottom: 0; }
 .ref-card .ref-src { color: var(--muted); font-size: 0.82rem; }
 .ref-card strong { color: var(--ink); }
+.ref-card a, .source-list a, .meta-grid a { color: var(--accent-2); }
+
+.source-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+.source-list li { margin-bottom: 6px; }
 
 .tag {
   flex: none;

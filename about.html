@@ -31,49 +31,69 @@
 
     <section class="panel">
       <h2>Special populations — when to use which reference</h2>
-      <p class="muted">The plotter ships with the WHO 2006, CDC 2000, and CDC infant references. The condition- and population-specific references below are documented here so the right chart can be chosen for the situation. The notes are general guidance — always consult the primary publication and local policy.</p>
+      <p class="muted">Alongside WHO 2006 and CDC 2000, the plotter now includes condition- and population-specific references. Pick a measure (e.g. <em>Weight for age</em>) and then the matching source. The notes below describe when each is indicated — general guidance only; always consult the primary publication and local policy.</p>
 
       <div class="ref-grid">
         <article class="ref-card">
           <div class="ref-head">
-            <h3>Fenton 2013</h3>
-            <span class="tag tag-pending">data not yet integrated</span>
+            <h3>Fenton 2003</h3>
+            <span class="tag tag-ready">integrated</span>
           </div>
-          <p class="ref-when"><strong>When to use:</strong> preterm infants from ~22 to 50 weeks <em>postmenstrual (corrected) age</em> — in the NICU and after discharge — for weight, length, and head circumference. Transition to WHO 2006 once the infant reaches term-corrected age.</p>
-          <p class="ref-best"><strong>Best for:</strong> very-low-birth-weight and preterm infants, where term age-based curves do not apply.</p>
-          <p class="ref-src"><strong>Source:</strong> Fenton TR, Kim JH. <em>BMC Pediatrics</em> 2013;13:59.</p>
+          <p class="ref-when"><strong>When to use:</strong> preterm infants from ~22 to 50 weeks <em>postmenstrual age</em> (gestational + postnatal) — in the NICU and after discharge — for weight, length, and head circumference. Transition to WHO 2006 around term-corrected age.</p>
+          <p class="ref-best"><strong>Best for:</strong> very-low-birth-weight and preterm infants, where term age-based curves do not apply. Enter a gestational age to plot points by postmenstrual age.</p>
+          <p class="ref-src"><strong>Source:</strong> Fenton TR. <em>BMC Pediatrics</em> 2003;3:13 — LMS tables via <a href="https://github.com/jhchou/peditools">peditools</a>.</p>
         </article>
 
         <article class="ref-card">
           <div class="ref-head">
-            <h3>INTERGROWTH-21st</h3>
-            <span class="tag tag-pending">data not yet integrated</span>
+            <h3>INTERGROWTH-21st (preterm)</h3>
+            <span class="tag tag-ready">integrated</span>
           </div>
-          <p class="ref-when"><strong>When to use:</strong> prescriptive international standards. <em>Newborn Size</em> (size-for-gestational-age at birth, 24–42+ weeks) classifies SGA / AGA / LGA; the <em>Preterm Postnatal Growth</em> standards are an alternative to Fenton; the term <em>0–5y</em> standards extend the WHO approach.</p>
-          <p class="ref-best"><strong>Best for:</strong> size-for-gestational-age at birth, preterm postnatal growth, and settings that prefer a single international prescriptive standard.</p>
-          <p class="ref-src"><strong>Source:</strong> Villar J, et al. <em>Lancet</em> 2014; INTERGROWTH-21st Project.</p>
+          <p class="ref-when"><strong>When to use:</strong> the <em>Postnatal Growth of Preterm Infants</em> standards (27–64 weeks postmenstrual age), as a prescriptive international alternative to Fenton, for weight, length, and head circumference.</p>
+          <p class="ref-best"><strong>Best for:</strong> preterm postnatal growth in settings that prefer the INTERGROWTH-21st international standard. (Newborn Size-for-GA tables are not yet wired in.)</p>
+          <p class="ref-src"><strong>Source:</strong> Villar J, et al. <em>Lancet Glob Health</em> 2015 — centile tables via <a href="https://github.com/SASPAC/gigs">gigs</a>.</p>
         </article>
 
         <article class="ref-card">
           <div class="ref-head">
-            <h3>China (national reference)</h3>
-            <span class="tag tag-pending">data not yet integrated</span>
+            <h3>Down syndrome (Zemel 2015)</h3>
+            <span class="tag tag-ready">integrated</span>
           </div>
-          <p class="ref-when"><strong>When to use:</strong> children in China or of Chinese descent, birth–18 years, where a national population reference reflects the population better than WHO/CDC.</p>
-          <p class="ref-best"><strong>Best for:</strong> population-specific monitoring where local references are standard of care.</p>
-          <p class="ref-src"><strong>Source:</strong> Capital Institute of Pediatrics; national growth surveys of Chinese children.</p>
+          <p class="ref-when"><strong>When to use:</strong> children with Trisomy 21, birth–20 years (weight, length/height, head circumference, BMI). The AAP recommends plotting on standard WHO/CDC charts <em>and</em> Down-syndrome-specific charts.</p>
+          <p class="ref-best"><strong>Best for:</strong> condition-specific surveillance alongside the standard charts, accounting for shorter stature and different weight/BMI trajectories.</p>
+          <p class="ref-src"><strong>Source:</strong> Zemel BS, et al. <em>Pediatrics</em> 2015;136:e1204 — LMS tables via <a href="https://github.com/jhchou/peditools">peditools</a>.</p>
         </article>
 
         <article class="ref-card">
           <div class="ref-head">
-            <h3>Down syndrome</h3>
-            <span class="tag tag-pending">data not yet integrated</span>
+            <h3>China NHC 2022</h3>
+            <span class="tag tag-ready">integrated</span>
           </div>
-          <p class="ref-when"><strong>When to use:</strong> children with Trisomy 21, birth–20 years. The AAP recommends plotting on standard WHO/CDC charts <em>and</em> Down-syndrome-specific charts, which account for shorter stature and different weight/BMI trajectories.</p>
-          <p class="ref-best"><strong>Best for:</strong> condition-specific surveillance alongside the standard charts.</p>
-          <p class="ref-src"><strong>Source:</strong> Zemel BS, et al. <em>Pediatrics</em> 2015;136:e1204 (US Down syndrome growth charts).</p>
+          <p class="ref-when"><strong>When to use:</strong> children in China or of Chinese descent, birth–7 years (weight, height, head circumference, BMI, weight-for-height/length), where a national reference reflects the population better than WHO/CDC.</p>
+          <p class="ref-best"><strong>Best for:</strong> population-specific monitoring where the national standard is standard of care.</p>
+          <p class="ref-src"><strong>Source:</strong> National Health Commission of China <em>WS/T 423-2022</em> — parameter tables via <a href="https://github.com/xiaot945/groowooth">groowooth</a>.</p>
+        </article>
+
+        <article class="ref-card">
+          <div class="ref-head">
+            <h3>Korea KNGC2017</h3>
+            <span class="tag tag-pending">not yet integrated</span>
+          </div>
+          <p class="ref-when"><strong>When to use:</strong> children in Korea or of Korean descent, 0–18 years, using the 2017 Korean National Growth Charts (same LMS method as the other references).</p>
+          <p class="ref-best"><strong>Best for:</strong> population-specific monitoring in Korea.</p>
+          <p class="ref-src"><strong>Source:</strong> KDCA — official LMS parameter tables at the <a href="https://knhanes.kdca.go.kr/knhanes/grtcht/main.do">KDCA growth-chart portal</a>. Pending a machine-readable export.</p>
         </article>
       </div>
+
+      <h3 style="margin-top:22px">Data sources &amp; toolkits</h3>
+      <p class="muted">The reference tables in this app are derived from these open publications and toolkits. The generator script <code>scripts/build-special-curves.py</code> documents exactly how each CSV is produced.</p>
+      <ul class="source-list">
+        <li><a href="https://github.com/SASPAC/gigs">SASPAC/gigs</a> — INTERGROWTH-21st (and WHO) standards; source of the preterm postnatal centile tables.</li>
+        <li><a href="https://github.com/jhchou/peditools">jhchou/peditools</a> — source of the Fenton 2003 and Zemel 2015 Down-syndrome LMS tables.</li>
+        <li><a href="https://github.com/xiaot945/groowooth">xiaot945/groowooth</a> — China NHC <em>WS/T 423-2022</em> parameter tables.</li>
+        <li><a href="https://cran.r-project.org/web/packages/childsds/refman/childsds.html">childsds</a> (<a href="https://git.sc.uni-leipzig.de/my221hepi/childsds">Leipzig source</a>) — curated multi-reference LMS collection, consulted for provenance.</li>
+        <li><a href="https://knhanes.kdca.go.kr/knhanes/grtcht/main.do">KDCA growth-chart portal</a> — official Korean KNGC2017 tables (integration pending).</li>
+      </ul>
     </section>
 
     <section class="panel">

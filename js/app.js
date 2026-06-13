@@ -131,6 +131,19 @@
     const computed = computedRows();
     drawReadout(computed);
     drawTable(computed);
+    updatePretermHint();
+  }
+
+  // Preterm (postmenstrual-age) charts need a gestational age to place points.
+  function updatePretermHint() {
+    const curve = state.selectedCurve;
+    if (!curve) return;
+    const ga = GrowthData.parseGestationalAgeWeeks(byId('gestAge').value);
+    if (curve.xUnit === 'weeks' && !Number.isFinite(ga) && state.observations.length) {
+      showMissingData('Preterm chart — enter gestational age at birth in the Patient panel to place measurements by postmenstrual age.');
+    } else {
+      hideMissingData();
+    }
   }
 
   function highlightActiveInputs(curve) {
@@ -217,9 +230,8 @@
           }
         },
         tooltip: {
-          filter: (item) => item.dataset.label === 'Patient' || item.dataset.label === '50th',
           callbacks: {
-            title: (items) => `${curve.xLabel}: ${GrowthData.formatNumber(items[0].parsed.x, 1)}`,
+            title: (items) => (items && items.length ? `${curve.xLabel}: ${GrowthData.formatNumber(items[0].parsed.x, 1)}` : ''),
             label: (item) => `${item.dataset.label}: ${GrowthData.formatNumber(item.parsed.y, 2)}`
           }
         }
@@ -289,7 +301,10 @@
       const x = GrowthData.xForObservation(obs, curve, opts);
       const y = GrowthData.valueForObservation(obs, curve.metric);
       const lms = Number.isFinite(x) ? GrowthData.interpolateLms(state.rows, x) : null;
-      const z = Number.isFinite(y) ? GrowthData.zScoreFromLms(y, lms) : null;
+      let z = Number.isFinite(y) ? GrowthData.zScoreFromLms(y, lms) : null;
+      if (!Number.isFinite(z) && Number.isFinite(x) && Number.isFinite(y)) {
+        z = GrowthData.zByPercentileInterp(state.rows, x, y); // percentile-only refs (IG, China)
+      }
       const pct = Number.isFinite(z) ? GrowthData.normalCdf(z) * 100 : null;
       return { obs, x, y, z, pct, age: numberOrNull(obs.ageMonths), measureDate: obs.measureDate };
     });

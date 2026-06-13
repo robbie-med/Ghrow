@@ -50,9 +50,32 @@ The reference CSVs are committed to the repo, so the app also works without runn
 
 ## Supported curves
 
+**Standard references**
+
 - **WHO 2006** (0–24 months): weight-for-age, length-for-age, head circumference-for-age, weight-for-length
 - **CDC 2000 infant** (0–36 months): weight-for-age, length-for-age, head circumference-for-age, weight-for-length
 - **CDC 2000** (2–20 years): weight-for-age, stature-for-age, BMI-for-age, weight-for-stature
+
+**Special populations** (pick a measure, then the matching source)
+
+- **Fenton 2003** — preterm, 22–50 weeks postmenstrual age (weight, length, head circumference)
+- **INTERGROWTH-21st** — preterm postnatal growth, 27–64 weeks postmenstrual age (weight, length, head circumference)
+- **Down syndrome (Zemel 2015)** — birth–20 years (weight, length/height, head circumference, BMI)
+- **China NHC 2022 (WS/T 423-2022)** — birth–7 years (weight, height, head circumference, BMI, weight-for-height/length)
+- **Korea KNGC2017** — documented; integration pending a machine-readable export from the KDCA portal
+
+Preterm charts plot by postmenstrual age, so a gestational age is required. Generate the special-population CSVs with `python3 scripts/build-special-curves.py`.
+
+## Data sources &amp; citations
+
+Reference tables are derived from these open publications and toolkits (see also the [About page](about.html)). `scripts/build-special-curves.py` documents exactly how each CSV is produced.
+
+- WHO / CDC: official tables fetched by `scripts/fetch-data.js`.
+- Fenton 2003 (Fenton TR, *BMC Pediatrics* 2003;3:13) and Down syndrome (Zemel BS et al., *Pediatrics* 2015;136:e1204) — LMS tables via [jhchou/peditools](https://github.com/jhchou/peditools).
+- INTERGROWTH-21st Postnatal Growth (Villar J et al., *Lancet Glob Health* 2015) — centile tables via [SASPAC/gigs](https://github.com/SASPAC/gigs).
+- China NHC *WS/T 423-2022* — parameter tables via [xiaot945/groowooth](https://github.com/xiaot945/groowooth).
+- [childsds](https://cran.r-project.org/web/packages/childsds/refman/childsds.html) ([Leipzig source](https://git.sc.uni-leipzig.de/my221hepi/childsds)) — curated multi-reference LMS collection, consulted for provenance.
+- Korea KNGC2017 — official tables at the [KDCA growth-chart portal](https://knhanes.kdca.go.kr/knhanes/grtcht/main.do) (integration pending).
 
 ## Adding new curves
 

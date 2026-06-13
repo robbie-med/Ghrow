@@ -85,10 +85,18 @@
 
     rows = rows
       .map((row) => normalizeRow(row, curve))
-      .filter((row) => Number.isFinite(row.chartX) && Number.isFinite(row.L) && Number.isFinite(row.M) && Number.isFinite(row.S))
+      .filter((row) => Number.isFinite(row.chartX) && (hasLms(row) || hasPercentile(row)))
       .sort((a, b) => a.chartX - b.chartX);
 
     return { rows, csv, file };
+  }
+
+  function hasLms(row) {
+    return Number.isFinite(row.L) && Number.isFinite(row.M) && Number.isFinite(row.S);
+  }
+
+  function hasPercentile(row) {
+    return Object.keys(row).some((key) => normalizePercentileColumn(key) && Number.isFinite(Number(row[key])));
   }
 
   function normalizeRow(row, curve) {
@@ -97,7 +105,7 @@
     let chartX = sourceX;
 
     if (curve.xUnit === 'days') chartX = sourceX / MONTH_DAYS;
-    if (curve.xUnit === 'weeks') chartX = sourceX / 4.348125;
+    if (curve.xUnit === 'weeks') chartX = sourceX; // postmenstrual age, plotted natively in weeks
     if (curve.xUnit === 'months') chartX = sourceX;
     if (curve.xUnit === 'cm') chartX = sourceX;
 
@@ -195,6 +203,17 @@
 
   function xForObservation(observation, curve, options) {
     if (curve.xUnit === 'cm') return numberOrNull(observation.lengthCm);
+
+    // Preterm charts (Fenton, INTERGROWTH postnatal) are plotted against
+    // postmenstrual age in weeks = gestational age + postnatal age.
+    if (curve.xUnit === 'weeks') {
+      const gaWeeks = parseGestationalAgeWeeks(options && options.gestAge);
+      if (!Number.isFinite(gaWeeks)) return null;
+      const ageMonths = numberOrNull(observation.ageMonths);
+      const postnatalWeeks = Number.isFinite(ageMonths) ? ageMonths * (MONTH_DAYS / 7) : 0;
+      return gaWeeks + postnatalWeeks;
+    }
+
     const chronological = numberOrNull(observation.ageMonths);
     if (!Number.isFinite(chronological)) return null;
 
@@ -241,6 +260,76 @@
       }
     }
     return null;
+  }
+
+  // Linear interpolation of one numeric column against chartX.
+  function interpolateColumnAtX(rows, x, column) {
+    if (!rows.length || !Number.isFinite(x)) return null;
+    if (x <= rows[0].chartX) return Number(rows[0][column]);
+    if (x >= rows[rows.length - 1].chartX) return Number(rows[rows.length - 1][column]);
+    for (let i = 1; i < rows.length; i += 1) {
+      if (rows[i].chartX >= x) {
+        const left = rows[i - 1];
+        const right = rows[i];
+        const span = right.chartX - left.chartX || 1;
+        const fraction = (x - left.chartX) / span;
+        return Number(left[column]) + (Number(right[column]) - Number(left[column])) * fraction;
+      }
+    }
+    return null;
+  }
+
+  // Z-score for references that ship percentile columns but no LMS parameters
+  // (e.g. INTERGROWTH-21st, China NHC). Interpolates the patient value across the
+  // percentile curves at this x and maps it back to a Z-score.
+  function zByPercentileInterp(rows, x, value) {
+    if (!rows.length || !Number.isFinite(x) || !Number.isFinite(value)) return null;
+    const points = [];
+    percentileColumns(rows).forEach((column) => {
+      const v = interpolateColumnAtX(rows, x, column);
+      const pct = Number(normalizePercentileColumn(column).slice(1));
+      if (Number.isFinite(v)) points.push({ z: probit(pct / 100), v });
+    });
+    if (points.length < 2) return null;
+    points.sort((a, b) => a.v - b.v);
+
+    const lerpZ = (a, b) => a.z + (value - a.v) * (b.z - a.z) / ((b.v - a.v) || 1);
+    let z;
+    if (value <= points[0].v) z = lerpZ(points[0], points[1]);
+    else if (value >= points[points.length - 1].v) z = lerpZ(points[points.length - 2], points[points.length - 1]);
+    else {
+      let i = 1;
+      while (i < points.length && value > points[i].v) i += 1;
+      z = lerpZ(points[i - 1], points[i]);
+    }
+    return Math.max(-5, Math.min(5, z));
+  }
+
+  // Inverse standard-normal CDF (Acklam's rational approximation).
+  function probit(p) {
+    if (!(p > 0 && p < 1)) return p <= 0 ? -Infinity : Infinity;
+    const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+    const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+    const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+    const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+    const plow = 0.02425;
+    const phigh = 1 - plow;
+    let q;
+    let r;
+    if (p < plow) {
+      q = Math.sqrt(-2 * Math.log(p));
+      return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    if (p > phigh) {
+      q = Math.sqrt(-2 * Math.log(1 - p));
+      return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+        ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    q = p - 0.5;
+    r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+      (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
   }
 
   function zScoreFromLms(value, lms) {
@@ -341,6 +430,9 @@
     calculateAgeMonths,
     parseGestationalAgeWeeks,
     interpolateLms,
+    interpolateColumnAtX,
+    zByPercentileInterp,
+    probit,
     zScoreFromLms,
     normalCdf,
     formatNumber,

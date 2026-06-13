@@ -40,12 +40,13 @@ for (const localPath of filesFromCatalog()) {
     continue;
   }
 
-  const header = fs.readFileSync(fullPath, 'utf8').split(/\r?\n/, 1)[0].split(',').map((x) => x.trim());
-  const missing = required.filter((column) => !header.includes(column));
+  const header = fs.readFileSync(fullPath, 'utf8').split(/\r?\n/, 1)[0].split(',').map((x) => x.trim().replace(/^﻿/, ''));
+  const hasLms = required.every((column) => header.includes(column));
   const percentileCount = header.filter((column) => normalizePercentileColumn(column)).length;
 
-  if (missing.length || percentileCount === 0) {
-    console.error(`bad header ${localPath}: missing ${missing.join(', ') || 'percentile columns'}`);
+  // A usable curve file has either LMS parameters or explicit percentile columns.
+  if ((!hasLms && percentileCount === 0) || percentileCount === 0) {
+    console.error(`bad header ${localPath}: needs L,M,S or percentile columns`);
     failures += 1;
   } else {
     console.log(`ok ${localPath}`);

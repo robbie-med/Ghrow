@@ -70,7 +70,13 @@
       </div>
 
       <div class="card">
-        <h2>Add measurement</h2>
+        <div class="card-head-row">
+          <h2>Add measurement</h2>
+          <fieldset class="unit-toggle" aria-label="Input units">
+            <label><input type="radio" name="units" value="metric" checked /> <span>Metric</span></label>
+            <label><input type="radio" name="units" value="imperial" /> <span>Imperial</span></label>
+          </fieldset>
+        </div>
         <form id="measurementForm" autocomplete="off">
           <div class="field-grid">
             <label>
@@ -84,15 +90,15 @@
             <p class="age-readout span-2" id="ageReadout"></p>
 
             <label data-input="weight">
-              Weight (kg)
+              Weight (<span class="u-weight">kg</span>)
               <input id="weightKg" type="number" inputmode="decimal" step="0.001" min="0" placeholder="e.g. 6.4" />
             </label>
             <label data-input="length">
-              Length / height (cm)
+              Length / height (<span class="u-length">cm</span>)
               <input id="lengthCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 62.4" />
             </label>
             <label data-input="head">
-              Head circ. (cm)
+              Head circ. (<span class="u-length">cm</span>)
               <input id="headCm" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 41.2" />
             </label>
             <label data-input="note">
@@ -154,7 +160,7 @@
             <tr>
               <td><input id="qaDate" type="date" aria-label="Date" /></td>
               <td><input id="qaMetric" type="text" inputmode="none" placeholder="h / w / c" aria-label="Metric (type h, w, or c)" autocomplete="off" readonly /></td>
-              <td><input id="qaValue" type="number" inputmode="decimal" step="0.001" min="0" placeholder="value" aria-label="Value" /></td>
+              <td><input id="qaValue" type="text" inputmode="text" placeholder="e.g. 34 cm" aria-label="Value with optional unit" autocomplete="off" /></td>
             </tr>
           </tbody>
         </table>

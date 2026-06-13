@@ -12,6 +12,8 @@
     chart: null
   };
 
+  let formUnits = 'metric'; // 'metric' | 'imperial' — affects the Add-measurement form only
+
   document.addEventListener('DOMContentLoaded', init);
 
   async function init() {
@@ -37,6 +39,7 @@
     byId('familySelect').addEventListener('change', () => { populateSourceSelect(); render(); });
     byId('chartSelect').addEventListener('change', render);
     document.querySelectorAll('input[name="sex"]').forEach((el) => el.addEventListener('change', render));
+    document.querySelectorAll('input[name="units"]').forEach((el) => el.addEventListener('change', onUnitsChange));
     byId('gestAge').addEventListener('input', () => { syncCorrectedAgeVisibility(); renderChartOnly(); });
     byId('useCorrectedAge').addEventListener('change', renderChartOnly);
     byId('dob').addEventListener('change', () => { recomputeAllAges(); updateAgeReadout(); renderChartOnly(); });
@@ -385,6 +388,7 @@
     }
 
     const unit = unitFromLabel(curve.yLabel);
+    const valueField = fieldForMetric(curve.metric);
     rows.forEach((r) => {
       const tr = document.createElement('tr');
       let velocityCell = '';
@@ -393,10 +397,14 @@
         const arrow = !Number.isFinite(r.dz) ? '' : r.dz > 0.1 ? ' ▲' : r.dz < -0.1 ? ' ▼' : '';
         velocityCell = `<span class="${cls}">${signed(r.velocity, 2)} ${escapeHtml(unit)}/mo${arrow}</span>`;
       }
+      const assumed = valueField && r.obs.assumed && r.obs.assumed[valueField] && Number.isFinite(r.y);
+      const valueCell = assumed
+        ? `<td class="assumed" title="No unit was entered — assumed metric (${escapeHtml(unit)})">${GrowthData.formatNumber(r.y, 2)}</td>`
+        : `<td>${Number.isFinite(r.y) ? GrowthData.formatNumber(r.y, 2) : '<span class="muted">—</span>'}</td>`;
       tr.innerHTML =
         `<td>${escapeHtml(r.measureDate || '')}</td>` +
         `<td>${Number.isFinite(r.age) ? formatAge(r.age) : ''}</td>` +
-        `<td>${Number.isFinite(r.y) ? GrowthData.formatNumber(r.y, 2) : '<span class="muted">—</span>'}</td>` +
+        valueCell +
         `<td>${Number.isFinite(r.pct) ? GrowthData.percentileText(r.pct) : ''}</td>` +
         `<td>${Number.isFinite(r.z) ? signed(r.z, 2) : ''}</td>` +
         `<td>${velocityCell}</td>` +
@@ -422,13 +430,17 @@
     let ageMonths = numericValue('ageMonths');
     if (!Number.isFinite(ageMonths)) ageMonths = GrowthData.calculateAgeMonths(dob, measureDate);
 
+    const imperial = currentUnits() === 'imperial';
+    const toKg = (v) => (Number.isFinite(v) ? (imperial ? v * 0.45359237 : v) : null);
+    const toCm = (v) => (Number.isFinite(v) ? (imperial ? v * 2.54 : v) : null);
+
     const obs = {
       id: uid(),
       measureDate,
       ageMonths: Number.isFinite(ageMonths) ? ageMonths : null,
-      weightKg: numericValue('weightKg'),
-      lengthCm: numericValue('lengthCm'),
-      headCm: numericValue('headCm'),
+      weightKg: toKg(numericValue('weightKg')),
+      lengthCm: toCm(numericValue('lengthCm')),
+      headCm: toCm(numericValue('headCm')),
       note: byId('note').value.trim()
     };
 
@@ -447,6 +459,41 @@
     renderChartOnly();
     showStatus('Measurement added');
     byId(firstNeededField()).focus();
+  }
+
+  /* ---------- Units toggle (Add-measurement form) ---------- */
+
+  function currentUnits() {
+    const el = document.querySelector('input[name="units"]:checked');
+    return el ? el.value : 'metric';
+  }
+
+  function onUnitsChange() {
+    const next = currentUnits();
+    if (next === formUnits) return;
+    const toImperial = next === 'imperial';
+    convertFieldValue('weightKg', toImperial ? 2.2046226218 : 0.45359237, toImperial ? 2 : 3);
+    convertFieldValue('lengthCm', toImperial ? 0.3937007874 : 2.54, toImperial ? 2 : 1);
+    convertFieldValue('headCm', toImperial ? 0.3937007874 : 2.54, toImperial ? 2 : 1);
+    formUnits = next;
+    document.querySelectorAll('.u-weight').forEach((s) => { s.textContent = toImperial ? 'lb' : 'kg'; });
+    document.querySelectorAll('.u-length').forEach((s) => { s.textContent = toImperial ? 'in' : 'cm'; });
+    byId('weightKg').placeholder = toImperial ? 'e.g. 14.1' : 'e.g. 6.4';
+    byId('lengthCm').placeholder = toImperial ? 'e.g. 24.6' : 'e.g. 62.4';
+    byId('headCm').placeholder = toImperial ? 'e.g. 16.2' : 'e.g. 41.2';
+  }
+
+  function convertFieldValue(id, factor, digits) {
+    const el = byId(id);
+    const v = Number(el.value);
+    if (el.value.trim() !== '' && Number.isFinite(v)) el.value = GrowthData.formatNumber(v * factor, digits);
+  }
+
+  function fieldForMetric(metric) {
+    if (metric === 'weight-age' || metric === 'weight-length' || metric === 'weight-stature') return 'weightKg';
+    if (metric === 'length-age' || metric === 'stature-age') return 'lengthCm';
+    if (metric === 'head-age') return 'headCm';
+    return null;
   }
 
   /* ---------- Quick-add grid (under the chart) ---------- */
@@ -493,25 +540,39 @@
     setQuickMetric(next);
   }
 
+  // Accept "34", "34cm", "34 cm", "34 in", "34\"", "9 lb", "9lb 4oz", etc.
+  // No unit -> assume metric, but flag it so the table can warn.
+  function parseQuickValue(metric, raw) {
+    const s = String(raw).trim();
+    if (!s) return null;
+    const withUnit = parseValueCell(metric, s); // non-null only when a unit was recognized
+    if (withUnit !== null) return { value: withUnit, assumed: false };
+    const m = s.match(/-?\d+(?:\.\d+)?/);
+    if (!m) return null;
+    const n = Number(m[0]);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return { value: metric === 'weight' ? round(n, 3) : round(n, 1), assumed: true };
+  }
+
   function commitQuickAdd() {
     const metric = byId('qaMetric').dataset.metric;
     const date = byId('qaDate').value;
-    const raw = byId('qaValue').value.trim();
-    const value = Number(raw);
+    const parsed = parseQuickValue(metric, byId('qaValue').value);
 
     if (!metric) { byId('qaMetric').focus(); showStatus('Pick a metric — type h, w, or c'); return; }
-    if (!raw || !Number.isFinite(value) || value <= 0) { byId('qaValue').focus(); showStatus('Enter a value'); return; }
+    if (!parsed) { byId('qaValue').focus(); showStatus('Enter a value'); return; }
 
     const age = GrowthData.calculateAgeMonths(byId('dob').value, date);
     const obs = { id: uid(), measureDate: date, ageMonths: Number.isFinite(age) ? age : null, weightKg: null, lengthCm: null, headCm: null, note: '' };
-    obs[QA_FIELD[metric]] = value;
+    obs[QA_FIELD[metric]] = parsed.value;
+    if (parsed.assumed) obs.assumed = { [QA_FIELD[metric]]: true };
     state.observations.push(obs);
 
     renderChartOnly();
     byId('qaValue').value = '';
     clearQuickMetric();
     byId('qaMetric').focus();
-    showStatus(`Added ${QA_LABELS[metric].toLowerCase()} ${GrowthData.formatNumber(value, 2)}`);
+    showStatus(`Added ${QA_LABELS[metric].toLowerCase()} ${GrowthData.formatNumber(parsed.value, 2)}${parsed.assumed ? ' (assumed metric)' : ''}`);
     if (!Number.isFinite(age) && state.selectedCurve && state.selectedCurve.xUnit !== 'weeks') {
       showMissingData('Tip: set a date of birth in the Patient panel so quick-added points land on the chart.');
     }

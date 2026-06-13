@@ -165,6 +165,37 @@ h1, h2, h3, p { margin-top: 0; }
   color: var(--muted);
 }
 
+.card-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.card-head-row h2 { margin: 0; }
+
+.unit-toggle {
+  display: inline-flex;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px;
+  margin: 0;
+}
+.unit-toggle label {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 3px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.unit-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.unit-toggle label:has(input:checked) { background: var(--accent); color: var(--accent-ink); }
+
 /* ---------- Forms ---------- */
 .field-grid {
   display: grid;
@@ -504,6 +535,16 @@ td .row-x:hover { background: rgba(239, 125, 125, 0.15); color: var(--danger); }
 
 .trend-up { color: var(--good); }
 .trend-down { color: var(--patient); }
+
+/* Value entered without a unit — assumed metric */
+td.assumed {
+  color: var(--danger);
+  font-weight: 600;
+}
+td.assumed::after {
+  content: " *";
+  color: var(--danger);
+}
 
 /* ---------- Notices ---------- */
 .notice {
